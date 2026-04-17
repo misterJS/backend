@@ -56,6 +56,16 @@ export type SuggestAreaFromLocationResponse = {
 
 export type CreateAreaInput = {
   label: string;
+  description?: string;
+  level?: AreaLevel;
+  latitude?: number | null;
+  longitude?: number | null;
+  provinceCode?: string;
+  cityCode?: string;
+  districtCode?: string;
+  villageCode?: string;
+  adminCode?: string;
+  source?: Extract<DirectoryEntrySource, "DEVICE_LOCATION" | "USER_INPUT">;
 };
 
 export type CreateMeetPointInput = {

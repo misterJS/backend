@@ -1,0 +1,25 @@
+adminCode,label,level,parentCode,description,latitude,longitude,countryCode,isActive
+31,DKI Jakarta,PROVINCE,,Provinsi DKI Jakarta,-6.2088,106.8456,ID,true
+31.74,Kota Jakarta Selatan,CITY,31,Kota Administrasi Jakarta Selatan,-6.2615,106.8106,ID,true
+31.74.06,Tebet,DISTRICT,31.74,Kecamatan Tebet,-6.2261,106.8554,ID,true
+31.74.06.1001,Tebet Barat,VILLAGE,31.74.06,Kelurahan Tebet Barat,-6.2297,106.8494,ID,true
+31.74.06.1002,Tebet Timur,VILLAGE,31.74.06,Kelurahan Tebet Timur,-6.2333,106.8587,ID,true
+32,Jawa Barat,PROVINCE,,Provinsi Jawa Barat,-6.9039,107.6186,ID,true
+32.75,Kota Bekasi,CITY,32,Kota Bekasi,-6.2383,106.9756,ID,true
+32.75.03,Bekasi Timur,DISTRICT,32.75,Kecamatan Bekasi Timur,-6.2341,107.0304,ID,true
+32.75.03.1001,Duren Jaya,VILLAGE,32.75.03,Kelurahan Duren Jaya,-6.2388,106.9831,ID,true
+32.75.03.1002,Aren Jaya,VILLAGE,32.75.03,Kelurahan Aren Jaya,-6.2461,106.9956,ID,true
+32.16,Kabupaten Bekasi,CITY,32,Kabupaten Bekasi,-6.2416,107.1458,ID,true
+32.16.07,Tambun Selatan,DISTRICT,32.16,Kecamatan Tambun Selatan,-6.2652,107.0542,ID,true
+32.16.07.1001,Jatimulya,VILLAGE,32.16.07,Kelurahan Jatimulya,-6.2642,107.0562,ID,true
+32.16.07.1002,Mekarsari,VILLAGE,32.16.07,Kelurahan Mekarsari,-6.2703,107.0471,ID,true
+35,Jawa Timur,PROVINCE,,Provinsi Jawa Timur,-7.5361,112.2384,ID,true
+35.78,Kota Surabaya,CITY,35,Kota Surabaya,-7.2575,112.7521,ID,true
+35.78.09,Tegalsari,DISTRICT,35.78,Kecamatan Tegalsari,-7.2747,112.7386,ID,true
+35.78.09.1001,Kedungdoro,VILLAGE,35.78.09,Kelurahan Kedungdoro,-7.2668,112.7356,ID,true
+35.78.09.1002,Wonorejo,VILLAGE,35.78.09,Kelurahan Wonorejo Tegalsari,-7.2792,112.7412,ID,true
+34,DI Yogyakarta,PROVINCE,,Provinsi DI Yogyakarta,-7.7956,110.3695,ID,true
+34.71,Kota Yogyakarta,CITY,34,Kota Yogyakarta,-7.7972,110.3688,ID,true
+34.71.09,Gondokusuman,DISTRICT,34.71,Kecamatan Gondokusuman,-7.7828,110.3845,ID,true
+34.71.09.1001,Demangan,VILLAGE,34.71.09,Kelurahan Demangan,-7.7821,110.3921,ID,true
+34.71.09.1002,Klitren,VILLAGE,34.71.09,Kelurahan Klitren,-7.7859,110.3804,ID,true

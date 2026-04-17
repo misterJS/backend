@@ -77,6 +77,32 @@ const toNumberValue = (value: RawRecord[keyof RawRecord]) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const toLatitudeValue = (value: RawRecord[keyof RawRecord]) => {
+  const parsed = toNumberValue(value);
+  if (parsed === null) {
+    return null;
+  }
+
+  if (parsed < -90 || parsed > 90) {
+    throw new Error(`Latitude tidak valid: ${parsed}`);
+  }
+
+  return parsed;
+};
+
+const toLongitudeValue = (value: RawRecord[keyof RawRecord]) => {
+  const parsed = toNumberValue(value);
+  if (parsed === null) {
+    return null;
+  }
+
+  if (parsed < -180 || parsed > 180) {
+    throw new Error(`Longitude tidak valid: ${parsed}`);
+  }
+
+  return parsed;
+};
+
 const toBooleanValue = (value: RawRecord[keyof RawRecord], fallback = true) => {
   const text = toStringValue(value);
   if (!text) {
@@ -361,8 +387,8 @@ const toParsedAreaRecord = (record: RawRecord, source: DirectoryEntrySource): Pa
         toStringValue(getFirstValue(record, ["villageCode", "village_code"]))
       ) ?? derivedCodes.villageCode,
     description: toStringValue(getFirstValue(record, ["description", "deskripsi"])),
-    latitude: toNumberValue(getFirstValue(record, ["latitude", "lat"])),
-    longitude: toNumberValue(getFirstValue(record, ["longitude", "lon", "lng"])),
+    latitude: toLatitudeValue(getFirstValue(record, ["latitude", "lat"])),
+    longitude: toLongitudeValue(getFirstValue(record, ["longitude", "lon", "lng"])),
     countryCode: toStringValue(getFirstValue(record, ["countryCode", "country_code"])) ?? "ID",
     isActive: toBooleanValue(getFirstValue(record, ["isActive", "is_active"]), true),
     source

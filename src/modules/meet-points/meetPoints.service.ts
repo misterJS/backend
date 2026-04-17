@@ -8,6 +8,7 @@ import {
 import { prisma } from "../../prisma/client";
 import { AppError } from "../../common/errors/appError";
 import {
+  AreaLocationSuggestion,
   AreaOption,
   CreateAreaInput,
   CreateMeetPointInput,
@@ -17,7 +18,145 @@ import {
   TripLeaderRouteRecommendationsResponse
 } from "./meetPoints.types";
 
+const DEFAULT_AREA_OPTIONS_LIMIT = 20;
+const MAX_AREA_OPTIONS_LIMIT = 50;
+const DEFAULT_SUGGESTIONS_LIMIT = 5;
+const MAX_SUGGESTIONS_LIMIT = 20;
+const DEFAULT_NEARBY_DUPLICATE_RADIUS_KM = 1.5;
+const DEFAULT_LOCATION_MATCH_RADIUS_KM = 25;
+
 const normalizeLabel = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
+
+const normalizeAdminCode = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  const digitsOnly = trimmed.replace(/\D/g, "");
+
+  if (/^\d+$/.test(trimmed) && digitsOnly.length >= 2) {
+    if (digitsOnly.length <= 2) {
+      return digitsOnly;
+    }
+
+    if (digitsOnly.length <= 4) {
+      return `${digitsOnly.slice(0, 2)}.${digitsOnly.slice(2)}`;
+    }
+
+    if (digitsOnly.length <= 6) {
+      return `${digitsOnly.slice(0, 2)}.${digitsOnly.slice(2, 4)}.${digitsOnly.slice(4)}`;
+    }
+
+    return `${digitsOnly.slice(0, 2)}.${digitsOnly.slice(2, 4)}.${digitsOnly.slice(4, 6)}.${digitsOnly.slice(6)}`;
+  }
+
+  return trimmed
+    .replace(/[/-]+/g, ".")
+    .replace(/\.+/g, ".")
+    .replace(/^\./, "")
+    .replace(/\.$/, "");
+};
+
+const deriveAreaCodes = (adminCode?: string | null) => {
+  if (!adminCode) {
+    return {
+      provinceCode: null,
+      cityCode: null,
+      districtCode: null,
+      villageCode: null
+    };
+  }
+
+  const segments = adminCode.split(".");
+
+  return {
+    provinceCode: segments[0] ?? null,
+    cityCode: segments.length >= 2 ? `${segments[0]}.${segments[1]}` : null,
+    districtCode: segments.length >= 3 ? `${segments[0]}.${segments[1]}.${segments[2]}` : null,
+    villageCode:
+      segments.length >= 4
+        ? `${segments[0]}.${segments[1]}.${segments[2]}.${segments.slice(3).join(".")}`
+        : null
+  };
+};
+
+const deriveParentCode = (level: AreaLevel, codes: {
+  provinceCode?: string | null;
+  cityCode?: string | null;
+  districtCode?: string | null;
+}) => {
+  switch (level) {
+    case AreaLevel.VILLAGE:
+      return codes.districtCode ?? null;
+    case AreaLevel.DISTRICT:
+      return codes.cityCode ?? null;
+    case AreaLevel.CITY:
+      return codes.provinceCode ?? null;
+    default:
+      return null;
+  }
+};
+
+const ensureLatitude = (value?: number | null) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value < -90 || value > 90) {
+    throw new AppError("Latitude must be between -90 and 90", 400);
+  }
+
+  return value;
+};
+
+const ensureLongitude = (value?: number | null) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value < -180 || value > 180) {
+    throw new AppError("Longitude must be between -180 and 180", 400);
+  }
+
+  return value;
+};
+
+const haversineDistanceKm = (
+  firstLatitude: number,
+  firstLongitude: number,
+  secondLatitude: number,
+  secondLongitude: number
+) => {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const latitudeDelta = toRadians(secondLatitude - firstLatitude);
+  const longitudeDelta = toRadians(secondLongitude - firstLongitude);
+  const a =
+    Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2) +
+    Math.cos(toRadians(firstLatitude)) *
+      Math.cos(toRadians(secondLatitude)) *
+      Math.sin(longitudeDelta / 2) *
+      Math.sin(longitudeDelta / 2);
+
+  return earthRadiusKm * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+const levelPriority = (level: AreaLevel) => {
+  switch (level) {
+    case AreaLevel.VILLAGE:
+      return 0;
+    case AreaLevel.DISTRICT:
+      return 1;
+    case AreaLevel.CITY:
+      return 2;
+    case AreaLevel.PROVINCE:
+      return 3;
+    default:
+      return 4;
+  }
+};
+
 const areaOptionSelect = {
   id: true,
   label: true,
@@ -33,6 +172,10 @@ const areaOptionSelect = {
   longitude: true,
   source: true
 } satisfies Prisma.AreaDirectorySelect;
+
+type SelectedArea = Prisma.AreaDirectoryGetPayload<{ select: typeof areaOptionSelect }>;
+
+type DbClient = typeof prisma;
 
 const buildScheduledAt = (departureTime: string | undefined, offsetMinutes: number) => {
   const base = departureTime ? new Date(departureTime) : new Date();
@@ -81,21 +224,7 @@ const buildDefaultRouteCheckpoints = (
   ];
 };
 
-const toAreaOption = (area: {
-  id: string;
-  label: string;
-  adminCode: string | null;
-  description: string | null;
-  level: AreaLevel;
-  parentId: string | null;
-  provinceCode: string | null;
-  cityCode: string | null;
-  districtCode: string | null;
-  villageCode: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  source: DirectoryEntrySource;
-}): AreaOption => ({
+const toAreaOption = (area: SelectedArea): AreaOption => ({
   id: area.id,
   label: area.label,
   value: area.label,
@@ -135,18 +264,129 @@ const toMeetPoint = (meetPoint: {
 });
 
 const toAreaLocationSuggestion = (
-  area: Parameters<typeof toAreaOption>[0],
+  area: SelectedArea,
   distanceKm: number | null,
   matchedBy: "AREA_DIRECTORY" | "MEET_POINT"
-) => ({
+): AreaLocationSuggestion => ({
   ...toAreaOption(area),
   distanceKm,
   matchedBy
 });
 
+const sortAreasForPicker = (areas: SelectedArea[]) =>
+  [...areas].sort((left, right) => {
+    const levelDelta = levelPriority(left.level) - levelPriority(right.level);
+    if (levelDelta !== 0) {
+      return levelDelta;
+    }
+
+    if (left.source !== right.source) {
+      return left.source.localeCompare(right.source);
+    }
+
+    return left.label.localeCompare(right.label, "id");
+  });
+
 export class MeetPointsService {
+  constructor(private readonly db: DbClient = prisma) {}
+
+  private async findParentId(level: AreaLevel, codes: {
+    provinceCode?: string | null;
+    cityCode?: string | null;
+    districtCode?: string | null;
+  }) {
+    const parentCode = deriveParentCode(level, codes);
+    if (!parentCode) {
+      return null;
+    }
+
+    const parent = await this.db.areaDirectory.findFirst({
+      where: {
+        OR: [
+          { adminCode: parentCode },
+          { provinceCode: parentCode },
+          { cityCode: parentCode },
+          { districtCode: parentCode }
+        ]
+      },
+      select: { id: true }
+    });
+
+    return parent?.id ?? null;
+  }
+
+  private async findExistingAreaForCreate(input: {
+    normalizedLabel: string;
+    level: AreaLevel;
+    adminCode: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    provinceCode: string | null;
+    cityCode: string | null;
+    districtCode: string | null;
+    villageCode: string | null;
+  }) {
+    if (input.adminCode) {
+      const byAdminCode = await this.db.areaDirectory.findUnique({
+        where: { adminCode: input.adminCode },
+        select: areaOptionSelect
+      });
+
+      if (byAdminCode) {
+        return byAdminCode;
+      }
+    }
+
+    const sameLabelAreas = await this.db.areaDirectory.findMany({
+      where: {
+        normalizedLabel: input.normalizedLabel,
+        isActive: true,
+        ...(input.level ? { level: input.level } : undefined)
+      },
+      select: areaOptionSelect,
+      take: 20
+    });
+
+    const exactHierarchyMatch = sameLabelAreas.find(
+      (area) =>
+        area.provinceCode === input.provinceCode &&
+        area.cityCode === input.cityCode &&
+        area.districtCode === input.districtCode &&
+        area.villageCode === input.villageCode
+    );
+
+    if (exactHierarchyMatch) {
+      return exactHierarchyMatch;
+    }
+
+    if (input.latitude !== null && input.longitude !== null) {
+      const candidateLatitude = input.latitude;
+      const candidateLongitude = input.longitude;
+      const nearbyMatch = sameLabelAreas.find((area) => {
+        if (area.latitude === null || area.longitude === null) {
+          return false;
+        }
+
+        return (
+          haversineDistanceKm(candidateLatitude, candidateLongitude, area.latitude, area.longitude) <=
+          DEFAULT_NEARBY_DUPLICATE_RADIUS_KM
+        );
+      });
+
+      if (nearbyMatch) {
+        return nearbyMatch;
+      }
+    }
+
+    if (sameLabelAreas.length === 1 && input.level === AreaLevel.OTHER) {
+      return sameLabelAreas[0];
+    }
+
+    return null;
+  }
+
   async getAll() {
-    const points = await prisma.savedMeetPoint.findMany({
+    const points = await this.db.savedMeetPoint.findMany({
       orderBy: [{ source: "asc" }, { updatedAt: "desc" }]
     });
 
@@ -156,60 +396,96 @@ export class MeetPointsService {
   async getAreaOptions(search?: string) {
     const normalizedSearch = search?.trim();
 
-    const areas = await prisma.areaDirectory.findMany({
+    const areas = await this.db.areaDirectory.findMany({
       select: areaOptionSelect,
-      where: normalizedSearch
-        ? {
-            OR: [
-              {
-                label: {
-                  contains: normalizedSearch,
-                  mode: "insensitive"
+      where: {
+        isActive: true,
+        ...(normalizedSearch
+          ? {
+              OR: [
+                {
+                  label: {
+                    contains: normalizedSearch,
+                    mode: "insensitive"
+                  }
+                },
+                {
+                  description: {
+                    contains: normalizedSearch,
+                    mode: "insensitive"
+                  }
+                },
+                {
+                  adminCode: {
+                    contains: normalizedSearch,
+                    mode: "insensitive"
+                  }
                 }
-              },
-              {
-                description: {
-                  contains: normalizedSearch,
-                  mode: "insensitive"
-                }
-              },
-              {
-                adminCode: {
-                  contains: normalizedSearch,
-                  mode: "insensitive"
-                }
-              }
-            ]
-          }
-        : undefined,
-      orderBy: [{ source: "asc" }, { label: "asc" }],
-      take: 30
+              ]
+            }
+          : undefined)
+      },
+      orderBy: [{ label: "asc" }],
+      take: MAX_AREA_OPTIONS_LIMIT
     });
 
-    return areas.map(toAreaOption);
+    return sortAreasForPicker(areas)
+      .slice(0, DEFAULT_AREA_OPTIONS_LIMIT)
+      .map(toAreaOption);
   }
 
   async createArea(payload: CreateAreaInput) {
     const label = payload.label.trim();
     const normalizedLabel = normalizeLabel(label);
+    const adminCode = normalizeAdminCode(payload.adminCode);
+    const latitude = ensureLatitude(payload.latitude);
+    const longitude = ensureLongitude(payload.longitude);
+    const derivedCodes = deriveAreaCodes(adminCode);
+    const level = payload.level ?? (payload.villageCode || derivedCodes.villageCode ? AreaLevel.VILLAGE : AreaLevel.OTHER);
+    const provinceCode = normalizeAdminCode(payload.provinceCode) ?? derivedCodes.provinceCode;
+    const cityCode = normalizeAdminCode(payload.cityCode) ?? derivedCodes.cityCode;
+    const districtCode = normalizeAdminCode(payload.districtCode) ?? derivedCodes.districtCode;
+    const villageCode = normalizeAdminCode(payload.villageCode) ?? derivedCodes.villageCode;
+    const source = payload.source ?? DirectoryEntrySource.USER_INPUT;
 
-    const existingArea = await prisma.areaDirectory.findUnique({
-      where: { normalizedLabel },
-      select: areaOptionSelect
+    const existingArea = await this.findExistingAreaForCreate({
+      normalizedLabel,
+      level,
+      adminCode,
+      latitude,
+      longitude,
+      provinceCode,
+      cityCode,
+      districtCode,
+      villageCode
     });
 
     if (existingArea) {
       return toAreaOption(existingArea);
     }
 
-    const createdArea = await prisma.areaDirectory.create({
+    const parentId = await this.findParentId(level, {
+      provinceCode,
+      cityCode,
+      districtCode
+    });
+
+    const createdArea = await this.db.areaDirectory.create({
       select: areaOptionSelect,
       data: {
         label,
         normalizedLabel,
-        level: AreaLevel.OTHER,
-        description: "Input manual pengguna",
-        source: DirectoryEntrySource.USER_INPUT
+        adminCode,
+        level,
+        parentId,
+        provinceCode,
+        cityCode,
+        districtCode,
+        villageCode,
+        description: payload.description?.trim() || "Ditambahkan dari aplikasi mobile",
+        latitude,
+        longitude,
+        source
       }
     });
 
@@ -218,7 +494,7 @@ export class MeetPointsService {
 
   async getRecommendations(area?: string) {
     const normalizedArea = area?.trim();
-    const points = await prisma.savedMeetPoint.findMany({
+    const points = await this.db.savedMeetPoint.findMany({
       where: normalizedArea
         ? {
             OR: [
@@ -253,13 +529,13 @@ export class MeetPointsService {
   async createMeetPoint(payload: CreateMeetPointInput) {
     const areaLabel = payload.area.trim();
     const normalizedArea = normalizeLabel(areaLabel);
-    let area = await prisma.areaDirectory.findUnique({
+    let area = await this.db.areaDirectory.findFirst({
       where: { normalizedLabel: normalizedArea },
       select: areaOptionSelect
     });
 
     if (!area) {
-      area = await prisma.areaDirectory.create({
+      area = await this.db.areaDirectory.create({
         select: areaOptionSelect,
         data: {
           label: areaLabel,
@@ -271,7 +547,7 @@ export class MeetPointsService {
       });
     }
 
-    const createdPoint = await prisma.savedMeetPoint.create({
+    const createdPoint = await this.db.savedMeetPoint.create({
       data: {
         name: payload.name.trim(),
         type: payload.type?.trim() || "Custom Point",
@@ -279,8 +555,8 @@ export class MeetPointsService {
         areaId: area.id,
         areaLabel,
         normalizedArea,
-        latitude: payload.latitude ?? null,
-        longitude: payload.longitude ?? null,
+        latitude: ensureLatitude(payload.latitude) ?? null,
+        longitude: ensureLongitude(payload.longitude) ?? null,
         source: DirectoryEntrySource.USER_INPUT
       }
     });
@@ -295,7 +571,7 @@ export class MeetPointsService {
   }): Promise<TripLeaderRouteRecommendationsResponse> {
     const [availableAreas, knownStartArea, knownDestinationArea] = await Promise.all([
       this.getAreaOptions(),
-      prisma.areaDirectory.findFirst({
+      this.db.areaDirectory.findFirst({
         select: { id: true },
         where: {
           label: {
@@ -304,7 +580,7 @@ export class MeetPointsService {
           }
         }
       }),
-      prisma.areaDirectory.findFirst({
+      this.db.areaDirectory.findFirst({
         select: { id: true },
         where: {
           label: {
@@ -338,27 +614,19 @@ export class MeetPointsService {
     longitude: number;
     limit?: number;
   }): Promise<SuggestAreaFromLocationResponse> {
-    const latitude = input.latitude;
-    const longitude = input.longitude;
-    const limit = Math.min(Math.max(input.limit ?? 5, 1), 10);
+    const latitude = ensureLatitude(input.latitude);
+    const longitude = ensureLongitude(input.longitude);
 
-    const nearestAreas = await prisma.$queryRaw<
-      Array<{
-        id: string;
-        label: string;
-        adminCode: string | null;
-        description: string | null;
-        level: AreaLevel;
-        parentId: string | null;
-        provinceCode: string | null;
-        cityCode: string | null;
-        districtCode: string | null;
-        villageCode: string | null;
-        latitude: number | null;
-        longitude: number | null;
-        source: DirectoryEntrySource;
-        distanceKm: number;
-      }>
+    if (latitude === null || longitude === null) {
+      throw new AppError("Latitude and longitude are required", 400);
+    }
+
+    const limit = Math.min(Math.max(input.limit ?? DEFAULT_SUGGESTIONS_LIMIT, 1), MAX_SUGGESTIONS_LIMIT);
+    const safeLatitude = latitude;
+    const safeLongitude = longitude;
+
+    const nearestAreas = await this.db.$queryRaw<
+      Array<SelectedArea & { distanceKm: number }>
     >(Prisma.sql`
       SELECT
         id,
@@ -380,8 +648,8 @@ export class MeetPointsService {
               1,
               GREATEST(
                 -1,
-                cos(radians(${latitude})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${longitude})) +
-                sin(radians(${latitude})) * sin(radians(latitude))
+                cos(radians(${safeLatitude})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${safeLongitude})) +
+                sin(radians(${safeLatitude})) * sin(radians(latitude))
               )
             )
           )
@@ -390,30 +658,33 @@ export class MeetPointsService {
       WHERE "isActive" = true
         AND latitude IS NOT NULL
         AND longitude IS NOT NULL
-      ORDER BY
-        CASE level
-          WHEN 'VILLAGE' THEN 0
-          WHEN 'DISTRICT' THEN 1
-          WHEN 'CITY' THEN 2
-          WHEN 'PROVINCE' THEN 3
-          ELSE 4
-        END ASC,
-        "distanceKm" ASC
-      LIMIT ${Prisma.raw(String(limit))}
+      ORDER BY "distanceKm" ASC
+      LIMIT ${Prisma.raw(String(Math.max(limit * 5, 20)))}
     `);
 
-    if (nearestAreas.length > 0) {
-      const suggestions = nearestAreas.map((area) =>
+    const closeAreaSuggestions = nearestAreas
+      .filter((area) => area.distanceKm <= DEFAULT_LOCATION_MATCH_RADIUS_KM)
+      .sort((left, right) => {
+        const levelDelta = levelPriority(left.level) - levelPriority(right.level);
+        if (levelDelta !== 0) {
+          return levelDelta;
+        }
+
+        return left.distanceKm - right.distanceKm;
+      })
+      .slice(0, limit)
+      .map((area) =>
         toAreaLocationSuggestion(area, Number(area.distanceKm.toFixed(2)), "AREA_DIRECTORY")
       );
 
+    if (closeAreaSuggestions.length > 0) {
       return {
-        primary: suggestions[0] ?? null,
-        suggestions
+        primary: closeAreaSuggestions[0] ?? null,
+        suggestions: closeAreaSuggestions
       };
     }
 
-    const nearestMeetPoints = await prisma.$queryRaw<
+    const nearestMeetPoints = await this.db.$queryRaw<
       Array<{
         id: string;
         areaId: string | null;
@@ -433,8 +704,8 @@ export class MeetPointsService {
               1,
               GREATEST(
                 -1,
-                cos(radians(${latitude})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${longitude})) +
-                sin(radians(${latitude})) * sin(radians(latitude))
+                cos(radians(${safeLatitude})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${safeLongitude})) +
+                sin(radians(${safeLatitude})) * sin(radians(latitude))
               )
             )
           )
@@ -443,22 +714,26 @@ export class MeetPointsService {
       WHERE latitude IS NOT NULL
         AND longitude IS NOT NULL
       ORDER BY "distanceKm" ASC
-      LIMIT ${Prisma.raw(String(limit))}
+      LIMIT ${Prisma.raw(String(Math.max(limit * 3, 10)))}
     `);
 
-    if (nearestMeetPoints.length === 0) {
+    const closeMeetPoints = nearestMeetPoints
+      .filter((point) => point.distanceKm <= DEFAULT_LOCATION_MATCH_RADIUS_KM)
+      .slice(0, limit);
+
+    if (closeMeetPoints.length === 0) {
       return {
         primary: null,
         suggestions: []
       };
     }
 
-    const knownAreaIds = nearestMeetPoints
+    const knownAreaIds = closeMeetPoints
       .map((point) => point.areaId)
       .filter((value): value is string => Boolean(value));
 
     const knownAreas = knownAreaIds.length
-      ? await prisma.areaDirectory.findMany({
+      ? await this.db.areaDirectory.findMany({
           select: areaOptionSelect,
           where: {
             id: {
@@ -470,7 +745,7 @@ export class MeetPointsService {
 
     const areaById = new Map(knownAreas.map((area) => [area.id, area]));
 
-    const suggestions = nearestMeetPoints.map((point) => {
+    const suggestions = closeMeetPoints.map((point) => {
       const mappedArea = point.areaId ? areaById.get(point.areaId) : null;
 
       if (mappedArea) {
@@ -481,10 +756,9 @@ export class MeetPointsService {
         );
       }
 
-      return {
+      const fallbackArea: SelectedArea = {
         id: `meet-point-${point.id}`,
         label: point.areaLabel,
-        value: point.areaLabel,
         adminCode: null,
         description: "Saran area dari titik point terdekat",
         level: AreaLevel.OTHER,
@@ -495,10 +769,14 @@ export class MeetPointsService {
         villageCode: null,
         latitude: null,
         longitude: null,
-        source: point.source,
-        distanceKm: Number(point.distanceKm.toFixed(2)),
-        matchedBy: "MEET_POINT" as const
+        source: point.source
       };
+
+      return toAreaLocationSuggestion(
+        fallbackArea,
+        Number(point.distanceKm.toFixed(2)),
+        "MEET_POINT"
+      );
     });
 
     return {
@@ -509,3 +787,10 @@ export class MeetPointsService {
 }
 
 export const meetPointsService = new MeetPointsService();
+
+export const areaDirectoryTestUtils = {
+  normalizeLabel,
+  normalizeAdminCode,
+  deriveAreaCodes,
+  haversineDistanceKm
+};

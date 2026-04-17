@@ -96,6 +96,7 @@ enum DirectoryEntrySource {
   SEED
   OFFICIAL_IMPORT
   USER_INPUT
+  DEVICE_LOCATION
 }
 
 enum AreaLevel {
@@ -294,7 +295,7 @@ model Rating {
 model AreaDirectory {
   id              String               @id @default(cuid())
   label           String
-  normalizedLabel String               @unique
+  normalizedLabel String
   adminCode       String?              @unique
   countryCode     String               @default("ID")
   level           AreaLevel            @default(OTHER)
@@ -315,9 +316,12 @@ model AreaDirectory {
   meetPoints      SavedMeetPoint[]
 
   @@index([label])
+  @@index([normalizedLabel])
+  @@index([normalizedLabel, level])
   @@index([level, label])
   @@index([parentId])
   @@index([provinceCode, cityCode, districtCode, villageCode])
+  @@index([latitude, longitude])
 }
 
 model SavedMeetPoint {
@@ -338,4 +342,5 @@ model SavedMeetPoint {
   @@index([areaId])
   @@index([areaLabel])
   @@index([normalizedArea])
+  @@index([latitude, longitude])
 }
