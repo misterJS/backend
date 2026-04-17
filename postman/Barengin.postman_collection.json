@@ -1,0 +1,834 @@
+{
+  "info": {
+    "_postman_id": "d5a3639e-3770-4a49-a0c9-b4f33aa4ba10",
+    "name": "Barengin Backend MVP",
+    "description": "Postman collection untuk backend MVP Barengin. Import file ini ke Postman lalu atur variable collection seperti `baseUrl`, `phoneNumber`, `accessToken`, `tripId`, `candidateTripId`, dan `matchId`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "phoneNumber",
+      "value": "081234567890"
+    },
+    {
+      "key": "otpCode",
+      "value": "123456"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "tripId",
+      "value": ""
+    },
+    {
+      "key": "candidateTripId",
+      "value": ""
+    },
+    {
+      "key": "matchId",
+      "value": ""
+    },
+    {
+      "key": "guardianTripId",
+      "value": ""
+    },
+    {
+      "key": "reportedUserId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/request-otp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /auth/verify-otp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response?.data?.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', response.data.accessToken);",
+                  "}",
+                  "if (response?.data?.user?.id) {",
+                  "  pm.collectionVariables.set('userId', response.data.user.id);",
+                  "}",
+                  "if (response?.data?.user?.id) {",
+                  "  pm.collectionVariables.set('reportedUserId', response.data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /users/me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /users/me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"Yusdi\",\n  \"vehicleType\": \"MOTOR\",\n  \"verificationStatus\": \"BASIC_VERIFIED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /users/:userId/rating-summary",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/rating-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}",
+                "rating-summary"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trips",
+      "item": [
+        {
+          "name": "POST /trips",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response?.data?.id) {",
+                  "  pm.collectionVariables.set('tripId', response.data.id);",
+                  "  pm.collectionVariables.set('guardianTripId', response.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startArea\": \"Bekasi Timur\",\n  \"destinationArea\": \"Tambun\",\n  \"vehicleType\": \"MOTOR\",\n  \"departureTime\": \"2026-04-16T19:30:00.000Z\",\n  \"wantsCompanion\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /trips/active",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips/active?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /trips/my",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips/my",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "my"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /trips/:tripId/end",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "end"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /trips/:tripId/cancel",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trips/{{tripId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trips",
+                "{{tripId}}",
+                "cancel"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Matching",
+      "item": [
+        {
+          "name": "GET /matching/candidates/:tripId",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/candidates/{{tripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "candidates",
+                "{{tripId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /matching/request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response?.data?.id) {",
+                  "  pm.collectionVariables.set('matchId', response.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requesterTripId\": \"{{tripId}}\",\n  \"candidateTripId\": \"{{candidateTripId}}\",\n  \"meetPointId\": \"mp-1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/matching/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "request"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /matching/:matchId",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/{{matchId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "{{matchId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /matching/:matchId/accept",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/{{matchId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "{{matchId}}",
+                "accept"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /matching/:matchId/reject",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/{{matchId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "{{matchId}}",
+                "reject"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /matching/:matchId/start",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/{{matchId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "{{matchId}}",
+                "start"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH /matching/:matchId/complete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/matching/{{matchId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "matching",
+                "{{matchId}}",
+                "complete"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meet Points",
+      "item": [
+        {
+          "name": "GET /meet-points",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meet-points",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meet-points"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /meet-points/recommendations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meet-points/recommendations?area=Bekasi Timur",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meet-points",
+                "recommendations"
+              ],
+              "query": [
+                {
+                  "key": "area",
+                  "value": "Bekasi Timur"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Guardians",
+      "item": [
+        {
+          "name": "POST /guardians",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": \"{{guardianTripId}}\",\n  \"name\": \"Ibu Rumah\",\n  \"phoneNumber\": \"081299999999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/guardians",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "guardians"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /guardians/:tripId",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/guardians/{{guardianTripId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "guardians",
+                "{{guardianTripId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "POST /reports",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": \"{{tripId}}\",\n  \"reportedUserId\": \"{{reportedUserId}}\",\n  \"reason\": \"Perlu ditinjau\",\n  \"description\": \"Partner sulit dihubungi saat perjalanan\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ratings",
+      "item": [
+        {
+          "name": "POST /ratings",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripId\": \"{{tripId}}\",\n  \"toUserId\": \"{{reportedUserId}}\",\n  \"score\": 5,\n  \"review\": \"Partner konvoi aman dan komunikatif\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ratings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ratings"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

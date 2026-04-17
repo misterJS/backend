@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VehicleType {
+  MOTOR
+  CAR
+  WALK
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  BASIC_VERIFIED
+  FULLY_VERIFIED
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum TripLeaderBadgeStatus {
+  NONE
+  ELIGIBLE
+  ACTIVE
+  SUSPENDED
+}
+
+enum TripStatus {
+  ACTIVE
+  MATCHING
+  MATCHED
+  IN_CONVOY
+  COMPLETED
+  CANCELLED
+}
+
+enum TripType {
+  REALTIME
+  SCHEDULED
+}
+
+enum TripParticipantRole {
+  LEADER
+  MEMBER
+}
+
+enum TripParticipantStatus {
+  JOINED
+  COMPLETED
+  CANCELLED
+  REMOVED
+}
+
+enum ReportSeverity {
+  LOW
+  MEDIUM
+  SEVERE
+}
+
+enum TripCheckpointSourceType {
+  DEFAULT
+  CUSTOM
+}
+
+enum TripCheckpointType {
+  DEPARTURE
+  PICKUP
+  REST
+  SCENIC
+  DESTINATION
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ConvoyStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  phoneNumber        String               @unique
+  nickname           String?
+  vehicleType        VehicleType?
+  verificationStatus VerificationStatus   @default(UNVERIFIED)
+  kycStatus          KycStatus            @default(PENDING)
+  tripLeaderBadgeStatus TripLeaderBadgeStatus @default(NONE)
+  ratingAverage      Float                @default(0)
+  ratingCount        Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  trips              Trip[]
+  ledTrips           Trip[]               @relation("TripLeaderTrips")
+  createdTrips       Trip[]               @relation("TripCreatorTrips")
+  tripParticipants   TripParticipant[]
+  tripStats          UserTripStats?
+  reportsMade        Report[]             @relation("UserReportsMade")
+  reportsReceived    Report[]             @relation("UserReportsReceived")
+  ratingsGiven       Rating[]             @relation("UserRatingsGiven")
+  ratingsReceived    Rating[]             @relation("UserRatingsReceived")
+}
+
+model UserTripStats {
+  userId               String   @id
+  successfulTripCount  Int      @default(0)
+  canceledTripCount    Int      @default(0)
+  reportedTripCount    Int      @default(0)
+  lastTripCompletedAt  DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OtpCode {
+  id          String   @id @default(cuid())
+  phoneNumber String
+  code        String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([phoneNumber, createdAt(sort: Desc)])
+}
+
+model Trip {
+  id                String            @id @default(cuid())
+  userId            String
+  createdById       String?
+  leaderId          String
+  tripType          TripType          @default(REALTIME)
+  startArea         String
+  destinationArea   String
+  vehicleType       VehicleType
+  departureTime     DateTime
+  wantsCompanion    Boolean           @default(true)
+  status            TripStatus        @default(ACTIVE)
+  participantCount  Int               @default(1)
+  completedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy         User?             @relation("TripCreatorTrips", fields: [createdById], references: [id], onDelete: SetNull)
+  leader            User              @relation("TripLeaderTrips", fields: [leaderId], references: [id], onDelete: Cascade)
+  participants      TripParticipant[]
+  checkpoints       TripCheckpoint[]
+  requesterMatches  MatchRequest[]    @relation("RequesterTripMatches")
+  candidateMatches  MatchRequest[]    @relation("CandidateTripMatches")
+  guardianContacts  GuardianContact[]
+  reports           Report[]
+  ratings           Rating[]
+
+  @@index([userId, status])
+  @@index([leaderId, status])
+  @@index([tripType, status])
+}
+
+model TripCheckpoint {
+  id          String                   @id @default(cuid())
+  tripId       String
+  title       String
+  subtitle    String?
+  area        String
+  scheduledAt DateTime
+  sourceType  TripCheckpointSourceType @default(DEFAULT)
+  checkpointType TripCheckpointType    @default(REST)
+  sequence    Int
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  trip        Trip                     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, sequence])
+}
+
+model TripParticipant {
+  id         String                @id @default(cuid())
+  tripId      String
+  userId      String
+  role       TripParticipantRole   @default(MEMBER)
+  status     TripParticipantStatus @default(JOINED)
+  joinedAt    DateTime              @default(now())
+  completedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  trip        Trip                  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([userId, status])
+}
+
+model MatchRequest {
+  id              String       @id @default(cuid())
+  requesterTripId String
+  candidateTripId String
+  status          MatchStatus  @default(PENDING)
+  similarityScore Int
+  meetPointId     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  requesterTrip   Trip         @relation("RequesterTripMatches", fields: [requesterTripId], references: [id], onDelete: Cascade)
+  candidateTrip   Trip         @relation("CandidateTripMatches", fields: [candidateTripId], references: [id], onDelete: Cascade)
+  convoySession   ConvoySession?
+
+  @@index([requesterTripId, candidateTripId])
+}
+
+model ConvoySession {
+  id             String       @id @default(cuid())
+  matchRequestId String       @unique
+  status         ConvoyStatus @default(PENDING)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  matchRequest   MatchRequest @relation(fields: [matchRequestId], references: [id], onDelete: Cascade)
+}
+
+model GuardianContact {
+  id          String   @id @default(cuid())
+  tripId       String
+  name        String
+  phoneNumber String
+  shareToken  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  tripId          String
+  reporterUserId  String
+  reportedUserId  String
+  reason         String
+  description    String?
+  severity       ReportSeverity @default(LOW)
+  createdAt      DateTime @default(now())
+  trip           Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reporterUser   User     @relation("UserReportsMade", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  reportedUser   User     @relation("UserReportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, reporterUserId])
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  tripId      String
+  fromUserId  String
+  toUserId    String
+  score      Int
+  review     String?
+  createdAt  DateTime @default(now())
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  fromUser   User     @relation("UserRatingsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User     @relation("UserRatingsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, fromUserId, toUserId])
+  @@index([toUserId])
+}

@@ -1,0 +1,50 @@
+import cors from "cors";
+import express from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import morgan from "morgan";
+import { authMiddleware } from "../common/middleware/authMiddleware";
+import { authRoutes } from "../modules/auth/auth.routes";
+import { usersRoutes } from "../modules/users/users.routes";
+import { usersController } from "../modules/users/users.controller";
+import { tripsRoutes } from "../modules/trips/trips.routes";
+import { matchingRoutes } from "../modules/matching/matching.routes";
+import { meetPointsRoutes } from "../modules/meet-points/meetPoints.routes";
+import { guardiansRoutes } from "../modules/guardians/guardians.routes";
+import { reportsRoutes } from "../modules/reports/reports.routes";
+import { ratingsRoutes } from "../modules/ratings/ratings.routes";
+import { globalErrorHandler } from "../common/middleware/globalErrorHandler";
+import { notFoundHandler } from "../common/middleware/notFoundHandler";
+import { successResponse } from "../common/utils/apiResponse";
+
+export const app = express();
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use(cors());
+app.use(helmet());
+app.use(morgan("dev"));
+app.use(limiter);
+app.use(express.json());
+
+app.get("/health", (_req, res) => {
+  res.json(successResponse("Barengin backend is running", { status: "ok" }));
+});
+
+app.get("/me/trip-leader-status", authMiddleware, usersController.getMyTripLeaderStatus);
+app.use("/auth", authRoutes);
+app.use("/users", usersRoutes);
+app.use("/trips", tripsRoutes);
+app.use("/matching", matchingRoutes);
+app.use("/meet-points", meetPointsRoutes);
+app.use("/guardians", guardiansRoutes);
+app.use("/reports", reportsRoutes);
+app.use("/ratings", ratingsRoutes);
+
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
