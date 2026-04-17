@@ -92,6 +92,20 @@ export class MatchingService {
     });
   }
 
+  async getTripRequests(userId: string, tripId: string) {
+    const trip = await matchingRepository.findTripById(tripId);
+
+    if (!trip) {
+      throw new AppError("Trip not found", 404);
+    }
+
+    if (trip.userId !== userId) {
+      throw new AppError("Forbidden", 403);
+    }
+
+    return matchingRepository.findRequestsByTripId(tripId);
+  }
+
   async getMatch(matchId: string) {
     const match = await matchingRepository.findMatchById(matchId);
 

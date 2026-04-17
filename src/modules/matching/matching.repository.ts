@@ -128,6 +128,16 @@ export class MatchingRepository {
     });
   }
 
+  async findRequestsByTripId(tripId: string) {
+    return prisma.matchRequest.findMany({
+      where: {
+        OR: [{ requesterTripId: tripId }, { candidateTripId: tripId }]
+      },
+      orderBy: { createdAt: "desc" },
+      select: matchDetailSelect
+    });
+  }
+
   async acceptMatch(matchId: string) {
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const updated = await tx.matchRequest.update({

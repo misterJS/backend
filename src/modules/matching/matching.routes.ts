@@ -17,6 +17,11 @@ router.get(
   validateRequest({ params: tripIdParamSchema }),
   matchingController.getCandidates
 );
+router.get(
+  "/trip/:tripId/requests",
+  validateRequest({ params: tripIdParamSchema }),
+  matchingController.getTripRequests
+);
 router.post(
   "/request",
   validateRequest({ body: createMatchRequestSchema }),

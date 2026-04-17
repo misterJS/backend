@@ -15,6 +15,16 @@ class MatchingController {
     res.status(200).json(successResponse("Candidates fetched successfully", result));
   });
 
+  getTripRequests = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.currentUser?.userId;
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const result = await matchingService.getTripRequests(userId, String(req.params.tripId));
+    res.status(200).json(successResponse("Trip requests fetched successfully", result));
+  });
+
   createRequest = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.currentUser?.userId;
     if (!userId) {
