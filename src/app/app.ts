@@ -20,6 +20,7 @@ import { successResponse } from "../common/utils/apiResponse";
 import { env } from "../config/env";
 
 export const app = express();
+app.disable("etag");
 
 const resolveTrustProxy = (value: string | boolean | undefined) => {
   if (typeof value === "boolean") {
@@ -63,6 +64,10 @@ app.set("trust proxy", resolveTrustProxy(env.TRUST_PROXY));
 app.use(cors());
 app.use(helmet());
 app.use(morgan("dev"));
+app.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
 app.use(limiter);
 app.use(express.json());
 

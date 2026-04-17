@@ -214,6 +214,14 @@ Gunakan hop count seperti `1`, jangan `true`. Nilai `true` terlalu permisif untu
 
 Tanpa ini, `express-rate-limit` bisa melempar error `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`. Jika terlalu permisif, ia bisa melempar `ERR_ERL_PERMISSIVE_TRUST_PROXY`.
 
+## API Caching
+
+Response API backend diset `Cache-Control: no-store` dan ETag dimatikan untuk mencegah client mobile menerima `304 Not Modified` tanpa body pada endpoint dinamis seperti:
+
+- `GET /meet-points/areas`
+- `GET /areas/suggest-from-location`
+- `GET /me/trip-leader-status`
+
 ## Verification
 
 Perintah yang sudah dijalankan:
