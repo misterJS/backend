@@ -37,6 +37,17 @@ class TripsController {
     res.status(200).json(successResponse("Trip fetched successfully", result));
   });
 
+  joinTrip = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.currentUser?.userId;
+
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const result = await tripsService.joinTrip(userId, String(req.params.tripId));
+    res.status(200).json(successResponse("Trip joined successfully", result));
+  });
+
   endTrip = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.currentUser?.userId;
 

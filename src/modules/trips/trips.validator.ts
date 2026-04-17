@@ -16,13 +16,27 @@ const createTripCheckpointSchema = z.object({
 });
 
 export const createTripSchema = z.object({
-  tripType: z.nativeEnum(TripType).default(TripType.REALTIME),
+  tripType: z.nativeEnum(TripType),
   startArea: z.string().trim().min(2).max(100),
   destinationArea: z.string().trim().min(2).max(100),
   vehicleType: z.nativeEnum(VehicleType),
   departureTime: z.string().datetime(),
   wantsCompanion: z.boolean(),
+  minParticipants: z.coerce.number().int().min(1).max(10).optional(),
+  maxParticipants: z.coerce.number().int().min(1).max(10).optional(),
   checkpoints: z.array(createTripCheckpointSchema).max(8).optional()
+}).superRefine((payload, context) => {
+  if (
+    payload.minParticipants !== undefined &&
+    payload.maxParticipants !== undefined &&
+    payload.minParticipants > payload.maxParticipants
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "minParticipants tidak boleh lebih besar dari maxParticipants.",
+      path: ["minParticipants"]
+    });
+  }
 });
 
 export const tripIdParamSchema = z.object({

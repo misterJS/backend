@@ -33,12 +33,11 @@ enum TripLeaderBadgeStatus {
 }
 
 enum TripStatus {
-  ACTIVE
-  MATCHING
-  MATCHED
-  IN_CONVOY
-  COMPLETED
-  CANCELLED
+  DRAFT     @map("draft")
+  OPEN      @map("open")
+  ONGOING   @map("ongoing")
+  COMPLETED @map("completed")
+  CANCELED  @map("canceled")
 }
 
 enum TripType {
@@ -100,6 +99,7 @@ model User {
   vehicleType        VehicleType?
   verificationStatus VerificationStatus   @default(UNVERIFIED)
   kycStatus          KycStatus            @default(PENDING)
+  isTripLeaderEligible Boolean            @default(false)
   tripLeaderBadgeStatus TripLeaderBadgeStatus @default(NONE)
   ratingAverage      Float                @default(0)
   ratingCount        Int                  @default(0)
@@ -148,8 +148,10 @@ model Trip {
   vehicleType       VehicleType
   departureTime     DateTime
   wantsCompanion    Boolean           @default(true)
-  status            TripStatus        @default(ACTIVE)
-  participantCount  Int               @default(1)
+  status            TripStatus        @default(OPEN)
+  minParticipants   Int               @default(3)
+  maxParticipants   Int               @default(10)
+  currentParticipants Int             @default(1)
   completedAt       DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt

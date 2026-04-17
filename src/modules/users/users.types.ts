@@ -5,6 +5,7 @@ export type UpdateProfileInput = {
   vehicleType?: VehicleType;
   verificationStatus?: VerificationStatus;
   kycStatus?: KycStatus;
+  isTripLeaderEligible?: boolean;
   tripLeaderBadgeStatus?: TripLeaderBadgeStatus;
 };
 

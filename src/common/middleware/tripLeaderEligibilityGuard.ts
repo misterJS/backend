@@ -16,7 +16,12 @@ export const tripLeaderEligibilityGuard = async (
       return;
     }
 
-    const tripType = (req.body.tripType as TripType | undefined) ?? TripType.REALTIME;
+    const tripType = req.body.tripType as TripType | undefined;
+
+    if (!tripType) {
+      next(new AppError("tripType wajib diisi.", 400));
+      return;
+    }
 
     const status = await tripLeaderService.ensureUserTripLeaderEligibility(userId, tripType);
 

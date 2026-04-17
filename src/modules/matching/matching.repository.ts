@@ -84,9 +84,7 @@ export class MatchingRepository {
         id: { not: tripId },
         userId: { not: userId },
         wantsCompanion: true,
-        status: {
-          in: [TripStatus.ACTIVE, TripStatus.MATCHING]
-        }
+        status: TripStatus.OPEN
       },
       select: candidateTripSelect
     });
@@ -107,11 +105,6 @@ export class MatchingRepository {
           meetPointId: data.meetPointId ?? null
         },
         select: matchDetailSelect
-      });
-
-      await tx.trip.update({
-        where: { id: data.requesterTripId },
-        data: { status: TripStatus.MATCHING }
       });
 
       return match;
@@ -143,15 +136,6 @@ export class MatchingRepository {
         select: matchDetailSelect
       });
 
-      await tx.trip.updateMany({
-        where: {
-          id: {
-            in: [updated.requesterTrip.id, updated.candidateTrip.id]
-          }
-        },
-        data: { status: TripStatus.MATCHED }
-      });
-
       return updated;
     });
   }
@@ -162,11 +146,6 @@ export class MatchingRepository {
         where: { id: matchId },
         data: { status: MatchStatus.REJECTED },
         select: matchDetailSelect
-      });
-
-      await tx.trip.update({
-        where: { id: updated.requesterTrip.id },
-        data: { status: TripStatus.ACTIVE }
       });
 
       return updated;
@@ -205,7 +184,7 @@ export class MatchingRepository {
             in: [updated.requesterTrip.id, updated.candidateTrip.id]
           }
         },
-        data: { status: TripStatus.IN_CONVOY }
+        data: { status: TripStatus.ONGOING }
       });
 
       return tx.matchRequest.findUniqueOrThrow({

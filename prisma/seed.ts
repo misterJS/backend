@@ -82,7 +82,8 @@ async function main() {
         vehicleType: VehicleType.MOTOR,
         departureTime: new Date(Date.now() + 60 * 60 * 1000),
         wantsCompanion: true,
-        status: TripStatus.ACTIVE
+        status: TripStatus.OPEN,
+        currentParticipants: 1
       }
     }),
     prisma.trip.create({
@@ -96,7 +97,8 @@ async function main() {
         vehicleType: VehicleType.MOTOR,
         departureTime: new Date(Date.now() + 90 * 60 * 1000),
         wantsCompanion: true,
-        status: TripStatus.ACTIVE
+        status: TripStatus.OPEN,
+        currentParticipants: 1
       }
     }),
     prisma.trip.create({
@@ -110,7 +112,8 @@ async function main() {
         vehicleType: VehicleType.CAR,
         departureTime: new Date(Date.now() + 120 * 60 * 1000),
         wantsCompanion: true,
-        status: TripStatus.ACTIVE
+        status: TripStatus.OPEN,
+        currentParticipants: 1
       }
     }),
     prisma.trip.create({
@@ -124,7 +127,8 @@ async function main() {
         vehicleType: VehicleType.MOTOR,
         departureTime: new Date(Date.now() + 150 * 60 * 1000),
         wantsCompanion: true,
-        status: TripStatus.ACTIVE
+        status: TripStatus.OPEN,
+        currentParticipants: 1
       }
     })
   ]);
@@ -140,7 +144,8 @@ async function main() {
       vehicleType: VehicleType.WALK,
       departureTime: new Date(Date.now() - 3 * 60 * 60 * 1000),
       wantsCompanion: true,
-      status: TripStatus.COMPLETED
+      status: TripStatus.COMPLETED,
+      currentParticipants: 1
     }
   });
 
@@ -155,7 +160,8 @@ async function main() {
       vehicleType: VehicleType.WALK,
       departureTime: new Date(Date.now() - 3 * 60 * 60 * 1000),
       wantsCompanion: true,
-      status: TripStatus.COMPLETED
+      status: TripStatus.COMPLETED,
+      currentParticipants: 1
     }
   });
 

@@ -16,12 +16,14 @@ export type CreateTripCheckpointInput = {
 };
 
 export type CreateTripInput = {
-  tripType?: TripType;
+  tripType: TripType;
   startArea: string;
   destinationArea: string;
   vehicleType: VehicleType;
   departureTime: string;
   wantsCompanion: boolean;
+  minParticipants?: number;
+  maxParticipants?: number;
   checkpoints?: CreateTripCheckpointInput[];
 };
 

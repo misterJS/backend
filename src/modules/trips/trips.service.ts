@@ -20,8 +20,8 @@ export class TripsService {
       throw new AppError("User already has an active trip", 400);
     }
 
-    const tripType = payload.tripType ?? TripType.REALTIME;
-    const tripLeaderStatus = await tripLeaderService.getTripLeaderStatus(userId);
+    const tripType = payload.tripType;
+    const tripLeaderStatus = await tripLeaderService.getTripLeaderEligibility(userId);
 
     if (!tripLeaderStatus) {
       throw new AppError("User trip leader status not found", 404);
@@ -49,6 +49,8 @@ export class TripsService {
       vehicleType: payload.vehicleType,
       departureTime: new Date(payload.departureTime),
       wantsCompanion: payload.wantsCompanion,
+      minParticipants: payload.minParticipants ?? 3,
+      maxParticipants: payload.maxParticipants ?? 10,
       checkpoints:
         payload.checkpoints?.map((checkpoint, index) => ({
           title: checkpoint.title,
@@ -96,6 +98,46 @@ export class TripsService {
     return trip;
   }
 
+  async joinTrip(userId: string, tripId: string) {
+    const [trip, existingParticipant, existingTrip] = await Promise.all([
+      tripsRepository.findById(tripId),
+      tripsRepository.findParticipant(tripId, userId),
+      tripsRepository.findOpenTripByUserId(userId)
+    ]);
+
+    if (!trip) {
+      throw new AppError("Trip not found", 404);
+    }
+
+    if (trip.status !== TripStatus.OPEN) {
+      throw new AppError("Trip tidak bisa di-join pada status saat ini.", 400);
+    }
+
+    if (trip.userId === userId) {
+      throw new AppError("Leader sudah otomatis menjadi participant trip ini.", 400);
+    }
+
+    if (existingParticipant) {
+      throw new AppError("User sudah join trip ini.", 400);
+    }
+
+    if (existingTrip) {
+      throw new AppError("User already has an active trip", 400);
+    }
+
+    if (trip.currentParticipants >= trip.maxParticipants) {
+      throw new AppError("Trip sudah penuh", 400);
+    }
+
+    const joinedTrip = await tripsRepository.joinTrip(tripId, userId);
+
+    if (!joinedTrip) {
+      throw new AppError("Trip sudah penuh", 400);
+    }
+
+    return joinedTrip;
+  }
+
   async endTrip(userId: string, tripId: string) {
     const trip = await tripsRepository.findById(tripId);
 
@@ -107,7 +149,7 @@ export class TripsService {
       throw new AppError("Forbidden", 403);
     }
 
-    if (trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELLED) {
+    if (trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELED) {
       throw new AppError("Trip already finished", 400);
     }
 
@@ -135,12 +177,12 @@ export class TripsService {
       throw new AppError("Forbidden", 403);
     }
 
-    if (trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELLED) {
+    if (trip.status === TripStatus.COMPLETED || trip.status === TripStatus.CANCELED) {
       throw new AppError("Trip already finished", 400);
     }
 
-    const result = await tripsRepository.updateStatus(tripId, TripStatus.CANCELLED);
-    await tripLeaderService.syncParticipantsAfterTripCompletion(tripId, TripStatus.CANCELLED);
+    const result = await tripsRepository.updateStatus(tripId, TripStatus.CANCELED);
+    await tripLeaderService.syncParticipantsAfterTripCompletion(tripId, TripStatus.CANCELED);
 
     const participantUserIds = await tripsRepository.listParticipantUserIds(tripId);
     await Promise.all(

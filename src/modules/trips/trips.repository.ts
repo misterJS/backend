@@ -13,7 +13,9 @@ const tripWithUserSelect = {
   departureTime: true,
   wantsCompanion: true,
   status: true,
-  participantCount: true,
+  minParticipants: true,
+  maxParticipants: true,
+  currentParticipants: true,
   completedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -70,7 +72,7 @@ export class TripsRepository {
       where: {
         userId,
         status: {
-          in: [TripStatus.ACTIVE, TripStatus.MATCHING, TripStatus.IN_CONVOY]
+          in: [TripStatus.DRAFT, TripStatus.OPEN, TripStatus.ONGOING]
         }
       }
     });
@@ -86,6 +88,8 @@ export class TripsRepository {
     vehicleType: Prisma.TripCreateInput["vehicleType"];
     departureTime: Date;
     wantsCompanion: boolean;
+    minParticipants: number;
+    maxParticipants: number;
     checkpoints: Array<{
       title: string;
       subtitle?: string;
@@ -107,7 +111,10 @@ export class TripsRepository {
           destinationArea: data.destinationArea,
           vehicleType: data.vehicleType,
           departureTime: data.departureTime,
-          wantsCompanion: data.wantsCompanion
+          wantsCompanion: data.wantsCompanion,
+          minParticipants: data.minParticipants,
+          maxParticipants: data.maxParticipants,
+          currentParticipants: 1
         },
         select: tripWithUserSelect
       });
@@ -147,7 +154,7 @@ export class TripsRepository {
   async listOpenTrips(skip: number, take: number) {
     const where = {
       status: {
-        in: [TripStatus.ACTIVE, TripStatus.MATCHING, TripStatus.MATCHED, TripStatus.IN_CONVOY]
+        in: [TripStatus.OPEN, TripStatus.ONGOING]
       }
     };
 
@@ -172,6 +179,54 @@ export class TripsRepository {
       },
       orderBy: { createdAt: "desc" },
       select: tripWithUserSelect
+    });
+  }
+
+  async findParticipant(tripId: string, userId: string) {
+    return prisma.tripParticipant.findUnique({
+      where: {
+        tripId_userId: {
+          tripId,
+          userId
+        }
+      }
+    });
+  }
+
+  async joinTrip(tripId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const updatedTrip = await tx.trip.updateMany({
+        where: {
+          id: tripId,
+          status: TripStatus.OPEN,
+          currentParticipants: {
+            lt: prisma.trip.fields.maxParticipants
+          }
+        },
+        data: {
+          currentParticipants: {
+            increment: 1
+          }
+        }
+      });
+
+      if (updatedTrip.count === 0) {
+        return null;
+      }
+
+      await tx.tripParticipant.create({
+        data: {
+          tripId,
+          userId,
+          role: TripParticipantRole.MEMBER,
+          status: TripParticipantStatus.JOINED
+        }
+      });
+
+      return tx.trip.findUniqueOrThrow({
+        where: { id: tripId },
+        select: tripWithUserSelect
+      });
     });
   }
 

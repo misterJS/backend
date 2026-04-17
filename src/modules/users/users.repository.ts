@@ -9,6 +9,7 @@ const userSelect = {
   vehicleType: true,
   verificationStatus: true,
   kycStatus: true,
+  isTripLeaderEligible: true,
   tripLeaderBadgeStatus: true,
   ratingAverage: true,
   ratingCount: true,

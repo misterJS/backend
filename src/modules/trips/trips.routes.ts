@@ -17,6 +17,7 @@ router.post(
 );
 router.get("/active", validateRequest({ query: tripsQuerySchema }), tripsController.getActiveTrips);
 router.get("/my", tripsController.getMyTrips);
+router.post("/:tripId/join", validateRequest({ params: tripIdParamSchema }), tripsController.joinTrip);
 router.get("/:tripId", validateRequest({ params: tripIdParamSchema }), tripsController.getTripById);
 router.patch("/:tripId/end", validateRequest({ params: tripIdParamSchema }), tripsController.endTrip);
 router.patch(

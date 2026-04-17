@@ -21,6 +21,7 @@ const tripLeaderStatusSelect = {
   vehicleType: true,
   verificationStatus: true,
   kycStatus: true,
+  isTripLeaderEligible: true,
   tripLeaderBadgeStatus: true,
   ratingAverage: true,
   ratingCount: true,
@@ -37,10 +38,8 @@ const tripLeaderStatusSelect = {
 } satisfies Prisma.UserSelect;
 
 const activeLeaderTripStatuses: TripStatus[] = [
-  TripStatus.ACTIVE,
-  TripStatus.MATCHING,
-  TripStatus.MATCHED,
-  TripStatus.IN_CONVOY
+  TripStatus.OPEN,
+  TripStatus.ONGOING
 ];
 
 type TripLeaderContext = Prisma.UserGetPayload<{
@@ -156,7 +155,7 @@ export class TripLeaderService {
             userId,
             OR: [
               { status: TripParticipantStatus.CANCELLED },
-              { trip: { status: TripStatus.CANCELLED } }
+              { trip: { status: TripStatus.CANCELED } }
             ]
           }
         }),
@@ -187,6 +186,7 @@ export class TripLeaderService {
           select: {
             id: true,
             kycStatus: true,
+            isTripLeaderEligible: true,
             tripLeaderBadgeStatus: true
           }
         })
@@ -239,6 +239,7 @@ export class TripLeaderService {
       prisma.user.update({
         where: { id: userId },
         data: {
+          isTripLeaderEligible: evaluation.isEligible,
           tripLeaderBadgeStatus: nextBadgeStatus
         }
       })
@@ -263,6 +264,10 @@ export class TripLeaderService {
     }
 
     return status;
+  }
+
+  async getTripLeaderEligibility(userId: string) {
+    return this.refreshUserTripStatsAndEligibility(userId);
   }
 
   async getUserTripStats(userId: string) {
@@ -308,6 +313,7 @@ export class TripLeaderService {
     await prisma.user.update({
       where: { id: userId },
       data: {
+        isTripLeaderEligible: true,
         tripLeaderBadgeStatus:
           activeLeaderTripCount > 0
             ? TripLeaderBadgeStatus.ACTIVE
