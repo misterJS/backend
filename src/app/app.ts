@@ -23,7 +23,7 @@ export const app = express();
 
 const resolveTrustProxy = (value: string | boolean | undefined) => {
   if (typeof value === "boolean") {
-    return value;
+    return value ? 1 : false;
   }
 
   if (!value) {
@@ -32,8 +32,12 @@ const resolveTrustProxy = (value: string | boolean | undefined) => {
 
   const normalized = value.trim().toLowerCase();
 
-  if (["true", "1", "yes"].includes(normalized)) {
-    return true;
+  if (["true", "yes"].includes(normalized)) {
+    return 1;
+  }
+
+  if (normalized === "1") {
+    return 1;
   }
 
   if (["false", "0", "no"].includes(normalized)) {

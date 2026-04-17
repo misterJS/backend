@@ -210,7 +210,9 @@ Jika backend berjalan di belakang Nginx, Railway, Render, VPS reverse proxy, ata
 TRUST_PROXY=1
 ```
 
-Tanpa ini, `express-rate-limit` bisa melempar error `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`.
+Gunakan hop count seperti `1`, jangan `true`. Nilai `true` terlalu permisif untuk `express-rate-limit`.
+
+Tanpa ini, `express-rate-limit` bisa melempar error `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`. Jika terlalu permisif, ia bisa melempar `ERR_ERL_PERMISSIVE_TRUST_PROXY`.
 
 ## Verification
 
