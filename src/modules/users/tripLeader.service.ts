@@ -13,6 +13,7 @@ import {
   MIN_SUCCESSFUL_TRIPS_FOR_LEADER,
   TRIP_TYPES_REQUIRING_LEADER_APPROVAL
 } from "../../config/tripLeader";
+import { buildTripHistoryOwnershipWhere } from "../trips/trips.repository";
 
 const tripLeaderStatusSelect = {
   id: true,
@@ -37,16 +38,20 @@ const tripLeaderStatusSelect = {
   }
 } satisfies Prisma.UserSelect;
 
-const activeLeaderTripStatuses: TripStatus[] = [
-  TripStatus.OPEN,
-  TripStatus.ONGOING
-];
+const activeLeaderTripStatuses: TripStatus[] = [TripStatus.OPEN, TripStatus.ONGOING];
 
-type TripLeaderContext = Prisma.UserGetPayload<{
-  select: typeof tripLeaderStatusSelect;
-}>;
+type DbClient = typeof prisma;
+
+export type ComputedTripStats = {
+  successfulTripCount: number;
+  canceledTripCount: number;
+  reportedTripCount: number;
+  lastTripCompletedAt: Date | null;
+};
 
 export class TripLeaderService {
+  constructor(private readonly db: DbClient = prisma) {}
+
   getMinimumSuccessfulTrips() {
     return MIN_SUCCESSFUL_TRIPS_FOR_LEADER;
   }
@@ -56,7 +61,7 @@ export class TripLeaderService {
   }
 
   async getUserTripLeaderContext(userId: string) {
-    return prisma.user.findUnique({
+    return this.db.user.findUnique({
       where: { id: userId },
       select: tripLeaderStatusSelect
     });
@@ -132,74 +137,84 @@ export class TripLeaderService {
     };
   }
 
-  async refreshUserTripStatsAndEligibility(userId: string) {
-    const [successfulTripCount, canceledTripCount, reportedTripCount, lastCompletedTrip, user] =
+  async computeTripStats(userId: string): Promise<ComputedTripStats> {
+    const ownedTripsWhere = buildTripHistoryOwnershipWhere(userId);
+
+    const [successfulTripCount, canceledTripCount, reportedTripCount, lastCompletedTrip] =
       await Promise.all([
-        prisma.tripParticipant.count({
+        this.db.trip.count({
           where: {
-            userId,
-            status: TripParticipantStatus.COMPLETED,
-            trip: {
-              status: TripStatus.COMPLETED,
-              currentParticipants: {
-                gte: prisma.trip.fields.minParticipants
-              },
-              reports: {
-                none: {
-                  reportedUserId: userId,
-                  severity: ReportSeverity.SEVERE
+            AND: [
+              ownedTripsWhere,
+              { status: TripStatus.COMPLETED },
+              // Severe reports explicitly disqualify an otherwise completed trip from leader progress.
+              {
+                reports: {
+                  none: {
+                    reportedUserId: userId,
+                    severity: ReportSeverity.SEVERE
+                  }
                 }
               }
-            }
-          }
-        }),
-        prisma.tripParticipant.count({
-          where: {
-            userId,
-            OR: [
-              { status: TripParticipantStatus.CANCELLED },
-              { trip: { status: TripStatus.CANCELED } }
             ]
           }
         }),
-        prisma.tripParticipant.count({
+        this.db.trip.count({
           where: {
-            userId,
-            trip: {
-              reports: {
-                some: {
-                  reportedUserId: userId,
-                  severity: ReportSeverity.SEVERE
-                }
-              }
-            }
+            AND: [ownedTripsWhere, { status: TripStatus.CANCELED }]
           }
         }),
-        prisma.tripParticipant.findFirst({
+        this.db.trip.count({
           where: {
-            userId,
-            status: TripParticipantStatus.COMPLETED,
-            trip: { status: TripStatus.COMPLETED }
+            AND: [
+              ownedTripsWhere,
+              {
+                reports: {
+                  some: {
+                    reportedUserId: userId,
+                    severity: ReportSeverity.SEVERE
+                  }
+                }
+              }
+            ]
+          }
+        }),
+        this.db.trip.findFirst({
+          where: {
+            AND: [ownedTripsWhere, { status: TripStatus.COMPLETED }]
           },
           orderBy: { completedAt: "desc" },
           select: { completedAt: true }
-        }),
-        prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            id: true,
-            kycStatus: true,
-            isTripLeaderEligible: true,
-            tripLeaderBadgeStatus: true
-          }
         })
       ]);
+
+    return {
+      successfulTripCount,
+      canceledTripCount,
+      reportedTripCount,
+      lastTripCompletedAt: lastCompletedTrip?.completedAt ?? null
+    };
+  }
+
+  async refreshUserTripStatsAndEligibility(userId: string) {
+    const [stats, user] = await Promise.all([
+      this.computeTripStats(userId),
+      this.db.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          kycStatus: true,
+          isTripLeaderEligible: true,
+          tripLeaderBadgeStatus: true
+        }
+      })
+    ]);
 
     if (!user) {
       return null;
     }
 
-    const activeLeaderTripCount = await prisma.trip.count({
+    const activeLeaderTripCount = await this.db.trip.count({
       where: {
         leaderId: userId,
         tripType: TripType.SCHEDULED,
@@ -209,7 +224,7 @@ export class TripLeaderService {
 
     const evaluation = this.evaluateEligibility({
       kycStatus: user.kycStatus,
-      successfulTripCount,
+      successfulTripCount: stats.successfulTripCount,
       tripLeaderBadgeStatus: user.tripLeaderBadgeStatus
     });
 
@@ -222,24 +237,24 @@ export class TripLeaderService {
             : TripLeaderBadgeStatus.ELIGIBLE
           : TripLeaderBadgeStatus.NONE;
 
-    await prisma.$transaction([
-      prisma.userTripStats.upsert({
+    await this.db.$transaction([
+      this.db.userTripStats.upsert({
         where: { userId },
         update: {
-          successfulTripCount,
-          canceledTripCount,
-          reportedTripCount,
-          lastTripCompletedAt: lastCompletedTrip?.completedAt ?? null
+          successfulTripCount: stats.successfulTripCount,
+          canceledTripCount: stats.canceledTripCount,
+          reportedTripCount: stats.reportedTripCount,
+          lastTripCompletedAt: stats.lastTripCompletedAt
         },
         create: {
           userId,
-          successfulTripCount,
-          canceledTripCount,
-          reportedTripCount,
-          lastTripCompletedAt: lastCompletedTrip?.completedAt ?? null
+          successfulTripCount: stats.successfulTripCount,
+          canceledTripCount: stats.canceledTripCount,
+          reportedTripCount: stats.reportedTripCount,
+          lastTripCompletedAt: stats.lastTripCompletedAt
         }
       }),
-      prisma.user.update({
+      this.db.user.update({
         where: { id: userId },
         data: {
           isTripLeaderEligible: evaluation.isEligible,
@@ -275,7 +290,7 @@ export class TripLeaderService {
 
   async getUserTripStats(userId: string) {
     const [user, status] = await Promise.all([
-      prisma.user.findUnique({
+      this.db.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -305,7 +320,7 @@ export class TripLeaderService {
   }
 
   async activateLeaderBadgeIfNeeded(userId: string) {
-    const activeLeaderTripCount = await prisma.trip.count({
+    const activeLeaderTripCount = await this.db.trip.count({
       where: {
         leaderId: userId,
         tripType: TripType.SCHEDULED,
@@ -313,7 +328,7 @@ export class TripLeaderService {
       }
     });
 
-    await prisma.user.update({
+    await this.db.user.update({
       where: { id: userId },
       data: {
         isTripLeaderEligible: true,
@@ -331,7 +346,7 @@ export class TripLeaderService {
         ? TripParticipantStatus.COMPLETED
         : TripParticipantStatus.CANCELLED;
 
-    await prisma.tripParticipant.updateMany({
+    await this.db.tripParticipant.updateMany({
       where: {
         tripId,
         status: TripParticipantStatus.JOINED

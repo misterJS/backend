@@ -66,6 +66,10 @@ const tripWithUserSelect = {
   }
 } satisfies Prisma.TripSelect;
 
+export const buildTripHistoryOwnershipWhere = (userId: string): Prisma.TripWhereInput => ({
+  OR: [{ userId }, { leaderId: userId }, { createdById: userId }]
+});
+
 export class TripsRepository {
   async findOpenTripByUserId(userId: string) {
     return prisma.trip.findFirst({
@@ -174,9 +178,7 @@ export class TripsRepository {
 
   async listTripsByUser(userId: string) {
     return prisma.trip.findMany({
-      where: {
-        OR: [{ userId }, { leaderId: userId }]
-      },
+      where: buildTripHistoryOwnershipWhere(userId),
       orderBy: { createdAt: "desc" },
       select: tripWithUserSelect
     });

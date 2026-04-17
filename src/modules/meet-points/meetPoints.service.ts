@@ -160,6 +160,7 @@ const levelPriority = (level: AreaLevel) => {
 const areaOptionSelect = {
   id: true,
   label: true,
+  value: true,
   adminCode: true,
   description: true,
   level: true,
@@ -227,7 +228,7 @@ const buildDefaultRouteCheckpoints = (
 const toAreaOption = (area: SelectedArea): AreaOption => ({
   id: area.id,
   label: area.label,
-  value: area.label,
+  value: area.value,
   adminCode: area.adminCode,
   description: area.description,
   level: area.level,
@@ -410,6 +411,12 @@ export class MeetPointsService {
                   }
                 },
                 {
+                  normalizedLabel: {
+                    contains: normalizeLabel(normalizedSearch),
+                    mode: "insensitive"
+                  }
+                },
+                {
                   description: {
                     contains: normalizedSearch,
                     mode: "insensitive"
@@ -474,6 +481,7 @@ export class MeetPointsService {
       select: areaOptionSelect,
       data: {
         label,
+        value: label,
         normalizedLabel,
         adminCode,
         level,
@@ -539,6 +547,7 @@ export class MeetPointsService {
         select: areaOptionSelect,
         data: {
           label: areaLabel,
+          value: areaLabel,
           normalizedLabel: normalizedArea,
           level: AreaLevel.OTHER,
           description: "Ditambahkan dari input titik point",
@@ -631,6 +640,7 @@ export class MeetPointsService {
       SELECT
         id,
         label,
+        value,
         "adminCode",
         description,
         level,
@@ -759,6 +769,7 @@ export class MeetPointsService {
       const fallbackArea: SelectedArea = {
         id: `meet-point-${point.id}`,
         label: point.areaLabel,
+        value: point.areaLabel,
         adminCode: null,
         description: "Saran area dari titik point terdekat",
         level: AreaLevel.OTHER,

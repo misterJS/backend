@@ -6,6 +6,7 @@ import { MeetPointsService } from "./meetPoints.service";
 const createArea = (overrides: Partial<{
   id: string;
   label: string;
+  value: string;
   adminCode: string | null;
   description: string | null;
   level: AreaLevel;
@@ -20,6 +21,7 @@ const createArea = (overrides: Partial<{
 }> = {}) => ({
   id: overrides.id ?? "area-1",
   label: overrides.label ?? "Jatimulya, Tambun Selatan, Kabupaten Bekasi",
+  value: overrides.value ?? overrides.label ?? "Jatimulya",
   adminCode: overrides.adminCode ?? "32.16.07.1001",
   description: overrides.description ?? "Kelurahan Jatimulya",
   level: overrides.level ?? AreaLevel.VILLAGE,
@@ -62,8 +64,32 @@ test("getAreaOptions returns village-first search results for the mobile picker"
 
   assert.equal(result.length, 2);
   assert.equal(result[0].id, "village-1");
-  assert.equal(result[0].value, result[0].label);
+  assert.equal(result[0].value, "Duren Jaya, Bekasi Timur, Kota Bekasi");
   assert.equal(result[1].id, "district-1");
+});
+
+test("getAreaOptions can match imported BPS-style village data by normalized search", async () => {
+  const importedVillage = createArea({
+    id: "bps-village-1",
+    label: "Tebet Barat",
+    value: "Tebet Barat",
+    adminCode: "31.74.06.1001",
+    description: "Tebet, Kota Jakarta Selatan, DKI Jakarta",
+    level: AreaLevel.VILLAGE
+  });
+
+  const fakeDb = {
+    areaDirectory: {
+      findMany: async () => [importedVillage]
+    }
+  };
+
+  const service = new MeetPointsService(fakeDb as never);
+  const result = await service.getAreaOptions("  tebet   barat ");
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0]?.id, "bps-village-1");
+  assert.equal(result[0]?.adminCode, "31.74.06.1001");
 });
 
 test("createArea returns an existing record when adminCode already exists", async () => {
@@ -177,4 +203,23 @@ test("suggestAreaFromLocation prefers a nearby village suggestion over broader l
   assert.equal(result.primary?.id, "village-1");
   assert.equal(result.primary?.matchedBy, "AREA_DIRECTORY");
   assert.equal(result.suggestions[0]?.level, AreaLevel.VILLAGE);
+});
+
+test("suggestAreaFromLocation returns empty suggestions when no area or meet point data exists", async () => {
+  const fakeDb = {
+    $queryRaw: async () => [],
+    areaDirectory: {
+      findMany: async () => []
+    }
+  };
+
+  const service = new MeetPointsService(fakeDb as never);
+  const result = await service.suggestAreaFromLocation({
+    latitude: -6.2,
+    longitude: 106.8,
+    limit: 5
+  });
+
+  assert.equal(result.primary, null);
+  assert.deepEqual(result.suggestions, []);
 });

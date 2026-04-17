@@ -44,6 +44,7 @@ async function main() {
     const createdArea = await prisma.areaDirectory.create({
       data: {
         label: data.label,
+        value: data.label,
         normalizedLabel: data.normalizedLabel,
         adminCode: data.adminCode,
         level: data.level,

@@ -8,6 +8,7 @@ type RawRecord = Record<string, string | number | boolean | null | undefined>;
 
 type ParsedAreaRecord = {
   label: string;
+  value: string;
   normalizedLabel: string;
   adminCode: string | null;
   level: AreaLevel;
@@ -30,20 +31,16 @@ const usage = () => {
   // eslint-disable-next-line no-console
   console.log(`
 Usage:
-  npm run areas:import -- --file ./data/areas.csv
-  npm run areas:import -- --file ./data/areas.geojson --format geojson --dry-run
+  npm run areas:import -- --file ./prisma/data/indonesia-bps-sample.csv
+  npm run areas:import -- --file ./path/to/areas.csv
+  npm run areas:import -- --file ./path/to/areas.json --format json
+  npm run areas:import -- --file ./path/to/areas.geojson --format geojson --dry-run
 
-Supported CSV columns:
+Preferred BPS CSV columns:
+  province_code,province_name,city_code,city_name,district_code,district_name,village_code,village_name,latitude,longitude
+
+Also supported generic columns:
   adminCode,label,level,parentCode,description,latitude,longitude,countryCode,isActive
-
-Supported GeoJSON properties:
-  adminCode|admin_code|kode|kode_wilayah
-  label|name|nama
-  level|areaLevel|tingkat
-  parentCode|parent_code|kode_parent
-  description|deskripsi
-  latitude|lat
-  longitude|lon|lng
 `);
 };
 
@@ -221,11 +218,7 @@ const extractCoordinates = (geometry: unknown): { latitude: number | null; longi
       return;
     }
 
-    if (
-      value.length >= 2 &&
-      typeof value[0] === "number" &&
-      typeof value[1] === "number"
-    ) {
+    if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
       acc.push([value[0], value[1]]);
       return;
     }
@@ -312,6 +305,16 @@ const parseCsv = (content: string): RawRecord[] => {
   });
 };
 
+const parseJson = (content: string): RawRecord[] => {
+  const parsed = JSON.parse(content) as unknown;
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("JSON area harus berupa array of objects.");
+  }
+
+  return parsed as RawRecord[];
+};
+
 const parseGeoJson = (content: string): RawRecord[] => {
   const parsed = JSON.parse(content) as {
     type?: string;
@@ -338,7 +341,121 @@ const parseGeoJson = (content: string): RawRecord[] => {
   });
 };
 
-const toParsedAreaRecord = (record: RawRecord, source: DirectoryEntrySource): ParsedAreaRecord | null => {
+const buildDescription = (...parts: Array<string | null>) => {
+  const filtered = parts.filter((value): value is string => Boolean(value && value.trim()));
+  return filtered.length > 0 ? filtered.join(", ") : null;
+};
+
+const createParsedRecord = (input: Omit<ParsedAreaRecord, "normalizedLabel">): ParsedAreaRecord => ({
+  ...input,
+  normalizedLabel: normalizeLabel(input.label)
+});
+
+const isBpsVillageRow = (record: RawRecord) =>
+  Boolean(
+    getFirstValue(record, ["village_code", "villageCode"]) &&
+      getFirstValue(record, ["village_name", "villageName"])
+  );
+
+const toBpsHierarchyRecords = (record: RawRecord, source: DirectoryEntrySource): ParsedAreaRecord[] => {
+  const provinceCode = normalizeAdminCode(
+    toStringValue(getFirstValue(record, ["province_code", "provinceCode"]))
+  );
+  const provinceName = toStringValue(getFirstValue(record, ["province_name", "provinceName"]));
+  const cityCode = normalizeAdminCode(toStringValue(getFirstValue(record, ["city_code", "cityCode"])));
+  const cityName = toStringValue(getFirstValue(record, ["city_name", "cityName"]));
+  const districtCode = normalizeAdminCode(
+    toStringValue(getFirstValue(record, ["district_code", "districtCode"]))
+  );
+  const districtName = toStringValue(
+    getFirstValue(record, ["district_name", "districtName"])
+  );
+  const villageCode = normalizeAdminCode(
+    toStringValue(getFirstValue(record, ["village_code", "villageCode"]))
+  );
+  const villageName = toStringValue(getFirstValue(record, ["village_name", "villageName"]));
+  const latitude = toLatitudeValue(getFirstValue(record, ["latitude", "lat"]));
+  const longitude = toLongitudeValue(getFirstValue(record, ["longitude", "lon", "lng"]));
+  const countryCode = toStringValue(getFirstValue(record, ["countryCode", "country_code"])) ?? "ID";
+  const isActive = toBooleanValue(getFirstValue(record, ["isActive", "is_active"]), true);
+
+  if (!provinceCode || !provinceName || !cityCode || !cityName || !districtCode || !districtName || !villageCode || !villageName) {
+    return [];
+  }
+
+  return [
+    createParsedRecord({
+      label: provinceName,
+      value: provinceName,
+      adminCode: provinceCode,
+      level: AreaLevel.PROVINCE,
+      parentCode: null,
+      provinceCode,
+      cityCode: null,
+      districtCode: null,
+      villageCode: null,
+      description: `Provinsi ${provinceName}`,
+      latitude: null,
+      longitude: null,
+      countryCode,
+      isActive,
+      source
+    }),
+    createParsedRecord({
+      label: cityName,
+      value: cityName,
+      adminCode: cityCode,
+      level: AreaLevel.CITY,
+      parentCode: provinceCode,
+      provinceCode,
+      cityCode,
+      districtCode: null,
+      villageCode: null,
+      description: buildDescription(cityName, provinceName),
+      latitude: null,
+      longitude: null,
+      countryCode,
+      isActive,
+      source
+    }),
+    createParsedRecord({
+      label: districtName,
+      value: districtName,
+      adminCode: districtCode,
+      level: AreaLevel.DISTRICT,
+      parentCode: cityCode,
+      provinceCode,
+      cityCode,
+      districtCode,
+      villageCode: null,
+      description: buildDescription(districtName, cityName, provinceName),
+      latitude: null,
+      longitude: null,
+      countryCode,
+      isActive,
+      source
+    }),
+    createParsedRecord({
+      label: villageName,
+      value: villageName,
+      adminCode: villageCode,
+      level: AreaLevel.VILLAGE,
+      parentCode: districtCode,
+      provinceCode,
+      cityCode,
+      districtCode,
+      villageCode,
+      description: buildDescription(districtName, cityName, provinceName),
+      latitude,
+      longitude,
+      countryCode,
+      isActive,
+      source
+    })
+  ];
+};
+
+const toGenericParsedAreaRecord = (record: RawRecord, source: DirectoryEntrySource): ParsedAreaRecord | null => {
   const label = toStringValue(getFirstValue(record, ["label", "name", "nama", "display_name"]));
   if (!label) {
     return null;
@@ -365,9 +482,9 @@ const toParsedAreaRecord = (record: RawRecord, source: DirectoryEntrySource): Pa
     ) ?? deriveParentCode(adminCode);
   const derivedCodes = deriveAreaCodes(adminCode);
 
-  return {
+  return createParsedRecord({
     label,
-    normalizedLabel: normalizeLabel(label),
+    value: toStringValue(getFirstValue(record, ["value"])) ?? label,
     adminCode,
     level,
     parentCode,
@@ -392,7 +509,16 @@ const toParsedAreaRecord = (record: RawRecord, source: DirectoryEntrySource): Pa
     countryCode: toStringValue(getFirstValue(record, ["countryCode", "country_code"])) ?? "ID",
     isActive: toBooleanValue(getFirstValue(record, ["isActive", "is_active"]), true),
     source
-  };
+  });
+};
+
+const toParsedAreaRecords = (record: RawRecord, source: DirectoryEntrySource): ParsedAreaRecord[] => {
+  if (isBpsVillageRow(record)) {
+    return toBpsHierarchyRecords(record, source);
+  }
+
+  const parsedRecord = toGenericParsedAreaRecord(record, source);
+  return parsedRecord ? [parsedRecord] : [];
 };
 
 const readRecordsFromFile = async (filePath: string, formatOverride: string | null) => {
@@ -403,12 +529,18 @@ const readRecordsFromFile = async (filePath: string, formatOverride: string | nu
     return parseCsv(content);
   }
 
-  if (format === "geojson" || format === "json") {
+  if (format === "geojson") {
     return parseGeoJson(content);
   }
 
-  throw new Error(`Format file "${format}" belum didukung. Gunakan csv atau geojson.`);
+  if (format === "json") {
+    return parseJson(content);
+  }
+
+  throw new Error(`Format file "${format}" belum didukung. Gunakan csv, json, atau geojson.`);
 };
+
+const recordDepth = (record: ParsedAreaRecord) => record.adminCode?.split(".").length ?? 99;
 
 const main = async () => {
   if (hasFlag("--help")) {
@@ -430,14 +562,22 @@ const main = async () => {
   const dryRun = hasFlag("--dry-run");
   const resolvedPath = path.resolve(process.cwd(), fileArg);
   const rawRecords = await readRecordsFromFile(resolvedPath, getArgValue("--format"));
-  const parsedRecords = rawRecords
-    .map((record) => toParsedAreaRecord(record, source))
-    .filter((record): record is ParsedAreaRecord => Boolean(record))
-    .sort((left, right) => {
-      const leftDepth = left.adminCode?.split(".").length ?? 99;
-      const rightDepth = right.adminCode?.split(".").length ?? 99;
-      return leftDepth - rightDepth;
+  const dedupedRecordMap = new Map<string, ParsedAreaRecord>();
+
+  rawRecords
+    .flatMap((record) => toParsedAreaRecords(record, source))
+    .forEach((record) => {
+      const dedupeKey = record.adminCode ?? `${record.level}:${record.normalizedLabel}:${record.parentCode ?? "root"}`;
+      const previous = dedupedRecordMap.get(dedupeKey);
+
+      if (!previous || recordDepth(record) >= recordDepth(previous)) {
+        dedupedRecordMap.set(dedupeKey, record);
+      }
     });
+
+  const parsedRecords = [...dedupedRecordMap.values()].sort(
+    (left, right) => recordDepth(left) - recordDepth(right)
+  );
 
   const codeToId = new Map<string, string>();
   let createdCount = 0;
@@ -453,6 +593,7 @@ const main = async () => {
     const parentId = record.parentCode ? codeToId.get(record.parentCode) ?? null : null;
     const createData = {
       label: record.label,
+      value: record.value,
       normalizedLabel: record.normalizedLabel,
       adminCode: record.adminCode,
       level: record.level,
@@ -474,8 +615,12 @@ const main = async () => {
           where: { adminCode: record.adminCode },
           select: { id: true }
         })
-      : await prisma.areaDirectory.findUnique({
-          where: { normalizedLabel: record.normalizedLabel },
+      : await prisma.areaDirectory.findFirst({
+          where: {
+            normalizedLabel: record.normalizedLabel,
+            level: record.level,
+            parentId
+          },
           select: { id: true }
         });
 

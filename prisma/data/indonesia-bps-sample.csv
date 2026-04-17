@@ -1,0 +1,11 @@
+province_code,province_name,city_code,city_name,district_code,district_name,village_code,village_name,latitude,longitude
+32,Jawa Barat,32.75,Kota Bekasi,32.75.03,Bekasi Timur,32.75.03.1001,Duren Jaya,-6.2388,106.9831
+32,Jawa Barat,32.75,Kota Bekasi,32.75.03,Bekasi Timur,32.75.03.1002,Aren Jaya,-6.2461,106.9956
+32,Jawa Barat,32.16,Kabupaten Bekasi,32.16.07,Tambun Selatan,32.16.07.1001,Jatimulya,-6.2642,107.0562
+32,Jawa Barat,32.16,Kabupaten Bekasi,32.16.07,Tambun Selatan,32.16.07.1002,Mekarsari,-6.2703,107.0471
+31,DKI Jakarta,31.74,Kota Jakarta Selatan,31.74.06,Tebet,31.74.06.1001,Tebet Barat,-6.2297,106.8494
+31,DKI Jakarta,31.74,Kota Jakarta Selatan,31.74.06,Tebet,31.74.06.1002,Tebet Timur,-6.2333,106.8587
+34,DI Yogyakarta,34.71,Kota Yogyakarta,34.71.09,Gondokusuman,34.71.09.1001,Demangan,-7.7821,110.3921
+34,DI Yogyakarta,34.71,Kota Yogyakarta,34.71.09,Gondokusuman,34.71.09.1002,Klitren,-7.7859,110.3804
+35,Jawa Timur,35.78,Kota Surabaya,35.78.09,Tegalsari,35.78.09.1001,Kedungdoro,-7.2668,112.7356
+35,Jawa Timur,35.78,Kota Surabaya,35.78.09,Tegalsari,35.78.09.1002,Wonorejo,-7.2792,112.7412

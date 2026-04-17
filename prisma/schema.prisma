@@ -295,6 +295,7 @@ model Rating {
 model AreaDirectory {
   id              String               @id @default(cuid())
   label           String
+  value           String
   normalizedLabel String
   adminCode       String?              @unique
   countryCode     String               @default("ID")
