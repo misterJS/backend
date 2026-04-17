@@ -25,5 +25,6 @@ router.patch(
   validateRequest({ params: tripIdParamSchema }),
   tripsController.cancelTrip
 );
+router.delete("/:tripId", validateRequest({ params: tripIdParamSchema }), tripsController.deleteTrip);
 
 export const tripsRoutes = router;

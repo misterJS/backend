@@ -184,7 +184,10 @@ export class MatchingRepository {
             in: [updated.requesterTrip.id, updated.candidateTrip.id]
           }
         },
-        data: { status: TripStatus.ONGOING }
+        data: {
+          status: TripStatus.ONGOING,
+          completedAt: null
+        }
       });
 
       return tx.matchRequest.findUniqueOrThrow({
@@ -226,7 +229,10 @@ export class MatchingRepository {
             in: [updated.requesterTrip.id, updated.candidateTrip.id]
           }
         },
-        data: { status: TripStatus.COMPLETED }
+        data: {
+          status: TripStatus.COMPLETED,
+          completedAt: new Date()
+        }
       });
 
       return tx.matchRequest.findUniqueOrThrow({

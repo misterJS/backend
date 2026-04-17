@@ -141,6 +141,9 @@ export class TripLeaderService {
             status: TripParticipantStatus.COMPLETED,
             trip: {
               status: TripStatus.COMPLETED,
+              currentParticipants: {
+                gte: prisma.trip.fields.minParticipants
+              },
               reports: {
                 none: {
                   reportedUserId: userId,

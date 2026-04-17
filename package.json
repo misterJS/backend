@@ -10,7 +10,8 @@
     "start": "node dist/src/app/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "areas:import": "tsx scripts/importAreas.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

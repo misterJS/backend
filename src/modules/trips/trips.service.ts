@@ -193,6 +193,28 @@ export class TripsService {
 
     return result;
   }
+
+  async deleteTrip(userId: string, tripId: string) {
+    const trip = await tripsRepository.findById(tripId);
+
+    if (!trip) {
+      throw new AppError("Trip not found", 404);
+    }
+
+    if (trip.userId !== userId) {
+      throw new AppError("Forbidden", 403);
+    }
+
+    if (trip.status === TripStatus.ONGOING) {
+      throw new AppError("Trip yang sedang berjalan tidak bisa dihapus.", 400);
+    }
+
+    if (trip.status === TripStatus.OPEN) {
+      throw new AppError("Batalkan trip terlebih dahulu sebelum menghapusnya.", 400);
+    }
+
+    return tripsRepository.deleteTrip(tripId);
+  }
 }
 
 export const tripsService = new TripsService();

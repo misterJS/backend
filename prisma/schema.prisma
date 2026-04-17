@@ -92,6 +92,20 @@ enum ConvoyStatus {
   CANCELLED
 }
 
+enum DirectoryEntrySource {
+  SEED
+  OFFICIAL_IMPORT
+  USER_INPUT
+}
+
+enum AreaLevel {
+  PROVINCE
+  CITY
+  DISTRICT
+  VILLAGE
+  OTHER
+}
+
 model User {
   id                 String               @id @default(cuid())
   phoneNumber        String               @unique
@@ -275,4 +289,53 @@ model Rating {
 
   @@unique([tripId, fromUserId, toUserId])
   @@index([toUserId])
+}
+
+model AreaDirectory {
+  id              String               @id @default(cuid())
+  label           String
+  normalizedLabel String               @unique
+  adminCode       String?              @unique
+  countryCode     String               @default("ID")
+  level           AreaLevel            @default(OTHER)
+  parentId        String?
+  provinceCode    String?
+  cityCode        String?
+  districtCode    String?
+  villageCode     String?
+  description     String?
+  latitude        Float?
+  longitude       Float?
+  isActive        Boolean              @default(true)
+  source          DirectoryEntrySource @default(SEED)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  parent          AreaDirectory?       @relation("AreaHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children        AreaDirectory[]      @relation("AreaHierarchy")
+  meetPoints      SavedMeetPoint[]
+
+  @@index([label])
+  @@index([level, label])
+  @@index([parentId])
+  @@index([provinceCode, cityCode, districtCode, villageCode])
+}
+
+model SavedMeetPoint {
+  id             String               @id @default(cuid())
+  name           String
+  type           String
+  address        String
+  areaId         String?
+  areaLabel      String
+  normalizedArea String
+  latitude       Float?
+  longitude      Float?
+  source         DirectoryEntrySource @default(SEED)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  area           AreaDirectory?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
+
+  @@index([areaId])
+  @@index([areaLabel])
+  @@index([normalizedArea])
 }

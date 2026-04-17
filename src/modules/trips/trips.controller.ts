@@ -69,6 +69,17 @@ class TripsController {
     const result = await tripsService.cancelTrip(userId, String(req.params.tripId));
     res.status(200).json(successResponse("Trip cancelled successfully", result));
   });
+
+  deleteTrip = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.currentUser?.userId;
+
+    if (!userId) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const result = await tripsService.deleteTrip(userId, String(req.params.tripId));
+    res.status(200).json(successResponse("Trip deleted successfully", result));
+  });
 }
 
 export const tripsController = new TripsController();

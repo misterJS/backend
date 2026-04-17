@@ -1,6 +1,8 @@
 import { MatchStatus } from "@prisma/client";
 import { AppError } from "../../common/errors/appError";
 import { calculateSimilarityScore } from "../../common/utils/matchingScore";
+import { tripsRepository } from "../trips/trips.repository";
+import { tripLeaderService } from "../users/tripLeader.service";
 import { matchingRepository } from "./matching.repository";
 import { CreateMatchRequestInput, MatchCandidate } from "./matching.types";
 
@@ -157,7 +159,33 @@ export class MatchingService {
       throw new AppError("Convoy is not active", 400);
     }
 
-    return matchingRepository.completeMatch(matchId);
+    const completedMatch = await matchingRepository.completeMatch(matchId);
+
+    await Promise.all([
+      tripLeaderService.syncParticipantsAfterTripCompletion(
+        completedMatch.requesterTrip.id,
+        completedMatch.requesterTrip.status
+      ),
+      tripLeaderService.syncParticipantsAfterTripCompletion(
+        completedMatch.candidateTrip.id,
+        completedMatch.candidateTrip.status
+      )
+    ]);
+
+    const participantUserIds = Array.from(
+      new Set([
+        ...(await tripsRepository.listParticipantUserIds(completedMatch.requesterTrip.id)),
+        ...(await tripsRepository.listParticipantUserIds(completedMatch.candidateTrip.id))
+      ])
+    );
+
+    await Promise.all(
+      participantUserIds.map((participantUserId) =>
+        tripLeaderService.refreshUserTripStatsAndEligibility(participantUserId)
+      )
+    );
+
+    return completedMatch;
   }
 }
 

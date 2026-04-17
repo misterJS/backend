@@ -241,6 +241,13 @@ export class TripsRepository {
     });
   }
 
+  async deleteTrip(tripId: string) {
+    return prisma.trip.delete({
+      where: { id: tripId },
+      select: tripWithUserSelect
+    });
+  }
+
   async listParticipantUserIds(tripId: string) {
     const participants = await prisma.tripParticipant.findMany({
       where: { tripId },
