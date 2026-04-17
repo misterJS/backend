@@ -131,6 +131,16 @@ Perubahan schema:
 - `normalizedLabel` tidak lagi unique global supaya nama area yang sama di wilayah berbeda bisa diimport
 - index baru untuk `normalizedLabel`, `normalizedLabel + level`, dan pasangan `latitude + longitude`
 
+## Reverse Proxy
+
+Jika backend berjalan di belakang Nginx, Railway, Render, VPS reverse proxy, atau ingress lain yang mengirim header `X-Forwarded-For`, set:
+
+```bash
+TRUST_PROXY=1
+```
+
+Tanpa ini, `express-rate-limit` bisa melempar error `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`.
+
 ## Verification
 
 Perintah yang sudah dijalankan:

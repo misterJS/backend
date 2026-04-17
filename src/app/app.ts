@@ -17,8 +17,36 @@ import { ratingsRoutes } from "../modules/ratings/ratings.routes";
 import { globalErrorHandler } from "../common/middleware/globalErrorHandler";
 import { notFoundHandler } from "../common/middleware/notFoundHandler";
 import { successResponse } from "../common/utils/apiResponse";
+import { env } from "../config/env";
 
 export const app = express();
+
+const resolveTrustProxy = (value: string | boolean | undefined) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (["true", "1", "yes"].includes(normalized)) {
+    return true;
+  }
+
+  if (["false", "0", "no"].includes(normalized)) {
+    return false;
+  }
+
+  const hopCount = Number(normalized);
+  if (Number.isInteger(hopCount) && hopCount >= 0) {
+    return hopCount;
+  }
+
+  return value;
+};
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -27,6 +55,7 @@ const limiter = rateLimit({
   legacyHeaders: false
 });
 
+app.set("trust proxy", resolveTrustProxy(env.TRUST_PROXY));
 app.use(cors());
 app.use(helmet());
 app.use(morgan("dev"));
