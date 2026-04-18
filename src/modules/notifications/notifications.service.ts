@@ -1,6 +1,7 @@
 import { NotificationStatus, NotificationType, Prisma } from "@prisma/client";
 import { Expo, ExpoPushErrorTicket, ExpoPushMessage, ExpoPushTicket } from "expo-server-sdk";
 import { AppError } from "../../common/errors/appError";
+import { normalizeExpoPushToken } from "../../common/utils/normalizeExpoPushToken";
 import { env } from "../../config/env";
 import { pushTokensRepository } from "../push-tokens/push-tokens.repository";
 import { notificationsRepository } from "./notifications.repository";
@@ -99,7 +100,9 @@ export class NotificationsService {
   }
 
   async sendPushToTokens(tokens: string[], payload: NotificationPayload): Promise<SendPushResult> {
-    const normalizedTokens = Array.from(new Set(tokens));
+    const normalizedTokens = Array.from(
+      new Set(tokens.map((token) => normalizeExpoPushToken(token)))
+    );
     const validTokens = normalizedTokens.filter((token: string) => this.validateExpoPushToken(token));
     const invalidFormatTokens = normalizedTokens.filter(
       (token: string) => !this.validateExpoPushToken(token)

@@ -1,4 +1,5 @@
 import { AppError } from "../../common/errors/appError";
+import { normalizeExpoPushToken } from "../../common/utils/normalizeExpoPushToken";
 import { signAccessToken } from "../../common/utils/jwt";
 import { pushTokensRepository } from "../push-tokens/push-tokens.repository";
 import { authRepository } from "./auth.repository";
@@ -95,7 +96,7 @@ export class AuthService {
 
     const affectedRows = await pushTokensRepository.deactivateByUserAndToken(
       userId,
-      payload.expoPushToken
+      normalizeExpoPushToken(payload.expoPushToken)
     );
 
     return {

@@ -1,15 +1,21 @@
 import { AppError } from "../../common/errors/appError";
+import { normalizeExpoPushToken } from "../../common/utils/normalizeExpoPushToken";
 import { notificationsService } from "../notifications/notifications.service";
 import { DeactivatePushTokenParams, RegisterPushTokenInput } from "./push-tokens.types";
 import { pushTokensRepository } from "./push-tokens.repository";
 
 export class PushTokensService {
   async registerToken(userId: string, payload: RegisterPushTokenInput) {
-    if (!notificationsService.validateExpoPushToken(payload.expoPushToken)) {
+    const normalizedToken = normalizeExpoPushToken(payload.expoPushToken);
+
+    if (!notificationsService.validateExpoPushToken(normalizedToken)) {
       throw new AppError("Invalid Expo push token", 400);
     }
 
-    const tokenRecord = await pushTokensRepository.createOrReactivate(userId, payload);
+    const tokenRecord = await pushTokensRepository.createOrReactivate(userId, {
+      ...payload,
+      expoPushToken: normalizedToken
+    });
     console.info("[push-tokens] Registered Expo push token", {
       userId,
       tokenId: tokenRecord.id,
@@ -20,7 +26,8 @@ export class PushTokensService {
   }
 
   async deactivateToken(userId: string, params: DeactivatePushTokenParams) {
-    const affectedRows = await pushTokensRepository.deactivateByUserAndToken(userId, params.token);
+    const normalizedToken = normalizeExpoPushToken(params.token);
+    const affectedRows = await pushTokensRepository.deactivateByUserAndToken(userId, normalizedToken);
 
     if (affectedRows === 0) {
       throw new AppError("Push token not found", 404);
@@ -33,7 +40,7 @@ export class PushTokensService {
 
     return {
       deactivated: true,
-      token: params.token
+      token: normalizedToken
     };
   }
 }
