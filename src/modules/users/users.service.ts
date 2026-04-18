@@ -1,4 +1,5 @@
 import { AppError } from "../../common/errors/appError";
+import { notificationsService } from "../notifications/notifications.service";
 import { usersRepository } from "./users.repository";
 import { tripLeaderService } from "./tripLeader.service";
 import { UpdateProfileInput } from "./users.types";
@@ -16,8 +17,25 @@ export class UsersService {
   }
 
   async updateCurrentUser(userId: string, payload: UpdateProfileInput) {
-    await this.getCurrentUser(userId);
-    return usersRepository.updateById(userId, payload);
+    const currentUser = await this.getCurrentUser(userId);
+    const updatedUser = await usersRepository.updateById(userId, payload);
+
+    const becameVerified =
+      (currentUser.kycStatus !== "VERIFIED" && updatedUser.kycStatus === "VERIFIED") ||
+      (currentUser.verificationStatus === "UNVERIFIED" &&
+        updatedUser.verificationStatus !== "UNVERIFIED");
+
+    if (becameVerified) {
+      try {
+        await notificationsService.sendAccountVerified({
+          recipientUserId: userId
+        });
+      } catch (error) {
+        console.error("[notifications] Failed to dispatch account verified notification", error);
+      }
+    }
+
+    return updatedUser;
   }
 
   async getRatingSummary(userId: string) {

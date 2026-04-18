@@ -85,12 +85,23 @@ export class MatchingService {
       }
     );
 
-    return matchingRepository.createMatchRequest({
+    const matchRequest = await matchingRepository.createMatchRequest({
       requesterTripId: payload.requesterTripId,
       candidateTripId: payload.candidateTripId,
       similarityScore,
       meetPointId: payload.meetPointId
     });
+
+    await this.dispatchNotificationSafely(() =>
+      notificationsService.sendMatchRequest({
+        recipientUserId: candidateTrip.userId,
+        matchId: matchRequest.id,
+        tripId: candidateTrip.id,
+        requesterNickname: requesterTrip.user.nickname
+      })
+    );
+
+    return matchRequest;
   }
 
   async getTripRequests(userId: string, tripId: string) {
@@ -133,10 +144,38 @@ export class MatchingService {
     await this.dispatchNotificationSafely(() =>
       notificationsService.sendMatchAccepted({
         recipientUserId: acceptedMatch.requesterTrip.userId,
+        matchId: acceptedMatch.id,
         requesterTripId: acceptedMatch.requesterTrip.id,
         candidateTripId: acceptedMatch.candidateTrip.id,
         candidateNickname: acceptedMatch.candidateTrip.user.nickname
       })
+    );
+
+    const reminderTargets = [
+      acceptedMatch.requesterTrip._count.guardianContacts === 0
+        ? {
+            recipientUserId: acceptedMatch.requesterTrip.userId,
+            tripId: acceptedMatch.requesterTrip.id,
+            matchId: acceptedMatch.id
+          }
+        : null,
+      acceptedMatch.candidateTrip._count.guardianContacts === 0
+        ? {
+            recipientUserId: acceptedMatch.candidateTrip.userId,
+            tripId: acceptedMatch.candidateTrip.id,
+            matchId: acceptedMatch.id
+          }
+        : null
+    ].filter(Boolean) as Array<{
+      recipientUserId: string;
+      tripId: string;
+      matchId: string;
+    }>;
+
+    await Promise.all(
+      reminderTargets.map((target) =>
+        this.dispatchNotificationSafely(() => notificationsService.sendGuardianReminder(target))
+      )
     );
 
     return acceptedMatch;
@@ -153,7 +192,17 @@ export class MatchingService {
       throw new AppError("Match is not pending", 400);
     }
 
-    return matchingRepository.rejectMatch(matchId);
+    const rejectedMatch = await matchingRepository.rejectMatch(matchId);
+
+    await this.dispatchNotificationSafely(() =>
+      notificationsService.sendMatchRejected({
+        recipientUserId: rejectedMatch.requesterTrip.userId,
+        matchId: rejectedMatch.id,
+        tripId: rejectedMatch.requesterTrip.id
+      })
+    );
+
+    return rejectedMatch;
   }
 
   async startConvoy(userId: string, matchId: string) {

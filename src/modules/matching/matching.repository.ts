@@ -40,6 +40,11 @@ const matchDetailSelect = {
           nickname: true,
           verificationStatus: true
         }
+      },
+      _count: {
+        select: {
+          guardianContacts: true
+        }
       }
     }
   },
@@ -56,6 +61,11 @@ const matchDetailSelect = {
           id: true,
           nickname: true,
           verificationStatus: true
+        }
+      },
+      _count: {
+        select: {
+          guardianContacts: true
         }
       }
     }
