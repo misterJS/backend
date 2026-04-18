@@ -41,6 +41,17 @@ export class AuthRepository {
     });
   }
 
+  async countOtpRequestsSince(phoneNumber: string, since: Date) {
+    return prisma.otpCode.count({
+      where: {
+        phoneNumber,
+        createdAt: {
+          gte: since
+        }
+      }
+    });
+  }
+
   async findUserByPhoneNumber(phoneNumber: string) {
     return prisma.user.findUnique({
       where: { phoneNumber },

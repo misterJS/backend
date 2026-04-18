@@ -57,7 +57,7 @@ const resolveTrustProxy = (value: string | boolean | undefined) => {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: 300,
   standardHeaders: true,
   legacyHeaders: false
 });
