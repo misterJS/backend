@@ -1,7 +1,8 @@
 import { AppError } from "../../common/errors/appError";
 import { signAccessToken } from "../../common/utils/jwt";
+import { pushTokensRepository } from "../push-tokens/push-tokens.repository";
 import { authRepository } from "./auth.repository";
-import { RequestOtpInput, VerifyOtpInput, VerifyOtpResult } from "./auth.types";
+import { LogoutInput, LogoutResult, RequestOtpInput, VerifyOtpInput, VerifyOtpResult } from "./auth.types";
 
 const OTP_CODE = "123456";
 const OTP_EXPIRY_MINUTES = 5;
@@ -41,6 +42,25 @@ export class AuthService {
     return {
       accessToken,
       user
+    };
+  }
+
+  async logout(userId: string, payload: LogoutInput): Promise<LogoutResult> {
+    if (!payload.expoPushToken) {
+      return {
+        loggedOut: true,
+        pushTokenDeactivated: false
+      };
+    }
+
+    const affectedRows = await pushTokensRepository.deactivateByUserAndToken(
+      userId,
+      payload.expoPushToken
+    );
+
+    return {
+      loggedOut: true,
+      pushTokenDeactivated: affectedRows > 0
     };
   }
 }

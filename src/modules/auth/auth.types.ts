@@ -9,6 +9,10 @@ export type VerifyOtpInput = {
   code: string;
 };
 
+export type LogoutInput = {
+  expoPushToken?: string;
+};
+
 export type AuthUserProfile = Pick<
   User,
   "id" | "phoneNumber" | "nickname" | "vehicleType" | "verificationStatus" | "ratingAverage" | "ratingCount" | "createdAt" | "updatedAt"
@@ -20,4 +24,9 @@ export type AuthUserProfile = Pick<
 export type VerifyOtpResult = {
   accessToken: string;
   user: AuthUserProfile;
+};
+
+export type LogoutResult = {
+  loggedOut: true;
+  pushTokenDeactivated: boolean;
 };
