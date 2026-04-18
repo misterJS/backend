@@ -45,6 +45,18 @@
     {
       "key": "reportedUserId",
       "value": ""
+    },
+    {
+      "key": "areaSearch",
+      "value": "Bekasi Timur"
+    },
+    {
+      "key": "areaLatitude",
+      "value": "-6.2388"
+    },
+    {
+      "key": "areaLongitude",
+      "value": "106.9831"
     }
   ],
   "item": [
@@ -208,6 +220,34 @@
               "path": [
                 "users",
                 "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /users/me/trip-leader-status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/trip-leader-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "trip-leader-status"
               ]
             }
           }
@@ -659,6 +699,97 @@
           }
         },
         {
+          "name": "GET /meet-points/areas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meet-points/areas?search={{areaSearch}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meet-points",
+                "areas"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{areaSearch}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /meet-points/areas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Tebet Barat\",\n  \"description\": \"Tebet, Kota Jakarta Selatan, DKI Jakarta\",\n  \"level\": \"VILLAGE\",\n  \"latitude\": -6.2297,\n  \"longitude\": 106.8494,\n  \"provinceCode\": \"31\",\n  \"cityCode\": \"31.74\",\n  \"districtCode\": \"31.74.06\",\n  \"villageCode\": \"31.74.06.1001\",\n  \"adminCode\": \"31.74.06.1001\",\n  \"source\": \"DEVICE_LOCATION\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/meet-points/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meet-points",
+                "areas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /meet-points/areas/suggest-from-location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meet-points/areas/suggest-from-location?lat={{areaLatitude}}&lon={{areaLongitude}}&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meet-points",
+                "areas",
+                "suggest-from-location"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{areaLatitude}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{areaLongitude}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "GET /meet-points/recommendations",
           "request": {
             "method": "GET",
@@ -676,6 +807,99 @@
                 {
                   "key": "area",
                   "value": "Bekasi Timur"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Areas",
+      "item": [
+        {
+          "name": "GET /areas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/areas?search={{areaSearch}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "areas"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "{{areaSearch}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /areas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Tebet Barat\",\n  \"description\": \"Tebet, Kota Jakarta Selatan, DKI Jakarta\",\n  \"level\": \"VILLAGE\",\n  \"latitude\": -6.2297,\n  \"longitude\": 106.8494,\n  \"provinceCode\": \"31\",\n  \"cityCode\": \"31.74\",\n  \"districtCode\": \"31.74.06\",\n  \"villageCode\": \"31.74.06.1001\",\n  \"adminCode\": \"31.74.06.1001\",\n  \"source\": \"DEVICE_LOCATION\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/areas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "areas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /areas/suggest-from-location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/areas/suggest-from-location?lat={{areaLatitude}}&lon={{areaLongitude}}&limit=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "areas",
+                "suggest-from-location"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{{areaLatitude}}"
+                },
+                {
+                  "key": "lon",
+                  "value": "{{areaLongitude}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
                 }
               ]
             }

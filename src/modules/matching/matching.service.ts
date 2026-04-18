@@ -1,6 +1,7 @@
 import { MatchStatus } from "@prisma/client";
 import { AppError } from "../../common/errors/appError";
 import { calculateSimilarityScore } from "../../common/utils/matchingScore";
+import { notificationsService } from "../notifications/notifications.service";
 import { tripsRepository } from "../trips/trips.repository";
 import { tripLeaderService } from "../users/tripLeader.service";
 import { matchingRepository } from "./matching.repository";
@@ -127,7 +128,18 @@ export class MatchingService {
       throw new AppError("Match is not pending", 400);
     }
 
-    return matchingRepository.acceptMatch(matchId);
+    const acceptedMatch = await matchingRepository.acceptMatch(matchId);
+
+    await this.dispatchNotificationSafely(() =>
+      notificationsService.sendMatchAccepted({
+        recipientUserId: acceptedMatch.requesterTrip.userId,
+        requesterTripId: acceptedMatch.requesterTrip.id,
+        candidateTripId: acceptedMatch.candidateTrip.id,
+        candidateNickname: acceptedMatch.candidateTrip.user.nickname
+      })
+    );
+
+    return acceptedMatch;
   }
 
   async rejectMatch(userId: string, matchId: string) {
@@ -157,7 +169,17 @@ export class MatchingService {
       throw new AppError("Match cannot be started", 400);
     }
 
-    return matchingRepository.startMatch(matchId);
+    const startedMatch = await matchingRepository.startMatch(matchId);
+
+    await this.dispatchNotificationSafely(() =>
+      notificationsService.sendTripStarted({
+        recipientUserIds: [startedMatch.requesterTrip.userId, startedMatch.candidateTrip.userId],
+        tripId: startedMatch.requesterTrip.id,
+        destinationArea: startedMatch.requesterTrip.destinationArea
+      })
+    );
+
+    return startedMatch;
   }
 
   async completeConvoy(userId: string, matchId: string) {
@@ -199,7 +221,23 @@ export class MatchingService {
       )
     );
 
+    await this.dispatchNotificationSafely(() =>
+      notificationsService.sendTripCompleted({
+        recipientUserIds: participantUserIds,
+        tripId: completedMatch.requesterTrip.id,
+        destinationArea: completedMatch.requesterTrip.destinationArea
+      })
+    );
+
     return completedMatch;
+  }
+
+  private async dispatchNotificationSafely(action: () => Promise<unknown>) {
+    try {
+      await action();
+    } catch (error) {
+      console.error("[notifications] Failed to dispatch matching event notification", error);
+    }
   }
 }
 

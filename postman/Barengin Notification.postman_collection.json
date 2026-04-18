@@ -1,0 +1,240 @@
+{
+  "info": {
+    "_postman_id": "cc1c4ef3-2bb7-4f83-a8fe-0d0e8c15c7d6",
+    "name": "Barengin Notification",
+    "description": "Postman collection khusus backend notification Barengin. Atur variable `baseUrl`, `phoneNumber`, `otpCode`, `accessToken`, `expoPushToken`, `encodedExpoPushToken`, dan `platform` sebelum dipakai.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "phoneNumber",
+      "value": "081234567890"
+    },
+    {
+      "key": "otpCode",
+      "value": "123456"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "expoPushToken",
+      "value": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+    },
+    {
+      "key": "encodedExpoPushToken",
+      "value": "ExponentPushToken%5Bxxxxxxxxxxxxxxxxxxxxxx%5D"
+    },
+    {
+      "key": "platform",
+      "value": "ANDROID"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Helper",
+      "item": [
+        {
+          "name": "POST /auth/request-otp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /auth/verify-otp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response?.data?.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', response.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Push Tokens",
+      "item": [
+        {
+          "name": "POST /push-tokens",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expoPushToken\": \"{{expoPushToken}}\",\n  \"platform\": \"{{platform}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/push-tokens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "push-tokens"
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE /push-tokens/:token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/push-tokens/{{encodedExpoPushToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "push-tokens",
+                "{{encodedExpoPushToken}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "POST /notifications/test",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Barengin Test Notification\",\n  \"body\": \"Push notification backend is working.\",\n  \"data\": {\n    \"type\": \"manual_test\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/notifications/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "test"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

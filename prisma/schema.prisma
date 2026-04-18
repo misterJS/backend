@@ -107,6 +107,11 @@ enum AreaLevel {
   OTHER
 }
 
+enum PushPlatform {
+  IOS
+  ANDROID
+}
+
 model User {
   id                 String               @id @default(cuid())
   phoneNumber        String               @unique
@@ -129,6 +134,7 @@ model User {
   reportsReceived    Report[]             @relation("UserReportsReceived")
   ratingsGiven       Rating[]             @relation("UserRatingsGiven")
   ratingsReceived    Rating[]             @relation("UserRatingsReceived")
+  pushTokens         PushToken[]
 }
 
 model UserTripStats {
@@ -344,4 +350,18 @@ model SavedMeetPoint {
   @@index([areaLabel])
   @@index([normalizedArea])
   @@index([latitude, longitude])
+}
+
+model PushToken {
+  id            String       @id @default(cuid())
+  userId        String
+  expoPushToken String       @unique
+  platform      PushPlatform
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([platform, isActive])
 }

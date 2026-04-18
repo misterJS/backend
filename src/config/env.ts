@@ -8,7 +8,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().min(1).default("7d"),
-  TRUST_PROXY: z.union([z.string(), z.boolean()]).optional()
+  TRUST_PROXY: z.union([z.string(), z.boolean()]).optional(),
+  EXPO_ACCESS_TOKEN: z.string().min(1).optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

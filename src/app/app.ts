@@ -14,6 +14,8 @@ import { areasRoutes } from "../modules/areas/areas.routes";
 import { guardiansRoutes } from "../modules/guardians/guardians.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
 import { ratingsRoutes } from "../modules/ratings/ratings.routes";
+import { pushTokensRoutes } from "../modules/push-tokens/push-tokens.routes";
+import { notificationsRoutes } from "../modules/notifications/notifications.routes";
 import { globalErrorHandler } from "../common/middleware/globalErrorHandler";
 import { notFoundHandler } from "../common/middleware/notFoundHandler";
 import { successResponse } from "../common/utils/apiResponse";
@@ -72,7 +74,7 @@ app.use(limiter);
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
-  res.json(successResponse("Barengin backend is running", { status: "ok" }));
+  res.json(successResponse("OK", { ok: true }));
 });
 
 app.get("/me/trip-leader-status", authMiddleware, usersController.getMyTripLeaderStatus);
@@ -85,6 +87,8 @@ app.use("/areas", areasRoutes);
 app.use("/guardians", guardiansRoutes);
 app.use("/reports", reportsRoutes);
 app.use("/ratings", ratingsRoutes);
+app.use("/push-tokens", pushTokensRoutes);
+app.use("/notifications", notificationsRoutes);
 
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
